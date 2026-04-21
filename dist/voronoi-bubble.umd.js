@@ -2964,4 +2964,4 @@ body {
   Object.defineProperty(exports, '__esModule', { value: true });
 
 }));
-//# sourceMappingURL=voronoi-treemap.umd.js.map
+//# sourceMappingURL=voronoi-bubble.umd.js.map

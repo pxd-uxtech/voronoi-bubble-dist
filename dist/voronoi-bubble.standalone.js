@@ -28444,4 +28444,4 @@ function showVoronoiPopup(clicked, options = {}) {
  */
 
 export { LabelAdjuster, PebbleRenderer, VoronoiTreemap, VoronoiTreemapHelpers, createDOMPopup, VoronoiTreemap as default, getBubbleStyles, getPopupStyles, nestingForVoronoi, showVoronoiPopup, showVoronoiPopup$1 as showVoronoiPopupLegacy };
-//# sourceMappingURL=voronoi-treemap.standalone.js.map
+//# sourceMappingURL=voronoi-bubble.standalone.js.map

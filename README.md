@@ -9,7 +9,7 @@ Copyright (c) 2025 UXtechLab. Licensed under [BUSL-1.1](https://mariadb.com/bsl1
 
 ## What's included beyond d3-voronoi-treemap
 
-[d3-voronoi-treemap](https://github.com/Kcnarf/d3-voronoi-treemap) computes weighted Voronoi polygons — it outputs geometry only. VoronoiBubble adds a complete rendering and interaction layer, with three key features that d3-voronoi-treemap doesn't provide at all:
+[d3-voronoi-treemap](https://github.com/Kcnarf/d3-voronoi-treemap) computes weighted Voronoi polygons — it outputs geometry only and requires a `d3.hierarchy()` object as input. VoronoiBubble takes a flat array, handles the hierarchy conversion internally, and adds a complete rendering and interaction layer. Three key features stand out:
 
 ### 1. Region position control
 
@@ -170,16 +170,32 @@ For local HTML files (using `file://` protocol), use the UMD standalone bundle:
 
 ## Data Format
 
+d3-voronoi-treemap takes a `d3.hierarchy()` object — you have to build the nested tree yourself. VoronoiBubble takes a **flat array** and converts it to a 3-level hierarchy internally:
+
+```
+root
+ └─ metaLabel   (depth 1 — top-level region)
+     └─ label   (depth 2 — cluster)
+         └─ text  (depth 3 — leaf item)
+```
+
 ```javascript
+// VoronoiBubble input — flat array, no nesting required
 [
-  {
-    metaLabel: "Region Name",  // Top-level grouping
-    label: "Cluster Name",     // Label for this item
-    text: "Sub Item Name",     // Sub-level label (optional)
-    bubbleSize: 100            // Size value (number; string also accepted)
-  }
+  { metaLabel: "Region Name", label: "Cluster Name", text: "Item Name", bubbleSize: 100 },
+  { metaLabel: "Region Name", label: "Cluster Name", text: "Item 2",    bubbleSize:  60 },
+  { metaLabel: "Region B",    label: "Sub Group",    text: "Item 3",    bubbleSize:  80 }
 ]
 ```
+
+| Field | Required | Description |
+|---|---|---|
+| `metaLabel` | ✓ | Top-level region (depth 1) |
+| `label` | ✓ | Cluster within the region (depth 2) |
+| `text` | — | Leaf item label (depth 3; omit if only 2 levels needed) |
+| `bubbleSize` | ✓ | Cell size weight (number or numeric string) |
+
+If `text` is omitted, the hierarchy collapses to 2 levels (metaLabel → label).
 
 ## Configuration Options
 

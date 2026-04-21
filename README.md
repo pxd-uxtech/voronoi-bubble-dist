@@ -7,6 +7,46 @@ Copyright (c) 2025 UXtechLab. Licensed under [BUSL-1.1](https://mariadb.com/bsl1
 
 ![VoronoiBubble Example](files/example-preview.png)
 
+## What's included beyond d3-voronoi-treemap
+
+[d3-voronoi-treemap](https://github.com/Kcnarf/d3-voronoi-treemap) computes weighted Voronoi polygons from hierarchical data — it outputs geometry only. VoronoiBubble builds a complete rendering and interaction layer on top:
+
+| Feature | d3-voronoi-treemap | VoronoiBubble |
+|---|---|---|
+| Polygon computation | ✓ | ✓ |
+| SVG rendering | — | ✓ |
+| Pebble outline (rounded cells) | — | ✓ |
+| Hierarchical labels (3 levels) | — | ✓ |
+| Automatic label collision adjustment | — | ✓ |
+| Custom HTML label renderer | — | ✓ |
+| Color palette + per-level variation | — | ✓ |
+| Click / hover interaction | — | ✓ |
+| Popup helpers (Observable + DOM) | — | ✓ |
+| Region position hints | — | ✓ |
+| Deterministic layout via seed | — | ✓ |
+| Percentage labels | — | ✓ |
+| Korean number formatting (조/억/만) | — | ✓ |
+
+### Pebble outline
+
+Renders each cell with a smooth, rounded border using Bézier curves — configurable per-level with `pebbleRound` and `pebbleWidth`.
+
+### Hierarchical labels with collision avoidance
+
+Three label levels (metaLabel → label → text) are automatically sized by cell area. The label adjuster detects overlaps between child labels and parent metaLabels, then repositions them to the direction with more available cell space — without moving them outside their polygon boundary.
+
+### Custom HTML label renderer
+
+Replace the default SVG text with any HTML via `metaLabelRenderer` / `labelRenderer` callbacks. The library passes context (`key`, `fontSize`, `darkerColor`, `percentText`) so custom renderers can match the visual style automatically.
+
+### Color system
+
+Colors are assigned from a palette by descending cell size. Each depth level gets a lighter/darker variation of the region color automatically. Override per-region with `metaLabelColors`, or retrieve applied colors via `getCellColors` for building legends.
+
+### Region position hints
+
+Pass `metaLabelPositions` to seed the Voronoi algorithm with preferred positions (e.g., quadrant, circle, or arbitrary coordinates). Coordinates are normalized automatically — useful for giving a specific layout intent while letting the algorithm handle exact boundaries.
+
 ## CDN Usage (jsdelivr)
 
 ### ES Module (Recommended)

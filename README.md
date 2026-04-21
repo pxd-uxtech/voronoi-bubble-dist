@@ -18,9 +18,9 @@ d3-voronoi-treemap requires you to build a nested tree with `d3.hierarchy()` bef
 ```javascript
 // No d3.hierarchy() needed — just pass a flat array
 const data = [
-  { metaLabel: "긍정", label: "매우 좋음", bubbleSize: 120 },
-  { metaLabel: "긍정", label: "좋음",     bubbleSize:  80 },
-  { metaLabel: "부정", label: "불만족",   bubbleSize:  60 }
+  { metaLabel: "긍정", label: "매우 좋음", text: "기대됨",  bubbleSize: 120 },
+  { metaLabel: "긍정", label: "좋음",     text: "만족",    bubbleSize:  80 },
+  { metaLabel: "부정", label: "불만족",   text: "아쉬움",  bubbleSize:  60 }
 ];
 
 treemap.render(data, { width: 900, height: 600 });

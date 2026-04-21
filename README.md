@@ -9,43 +9,49 @@ Copyright (c) 2025 UXtechLab. Licensed under [BUSL-1.1](https://mariadb.com/bsl1
 
 ## What's included beyond d3-voronoi-treemap
 
-[d3-voronoi-treemap](https://github.com/Kcnarf/d3-voronoi-treemap) computes weighted Voronoi polygons from hierarchical data — it outputs geometry only. VoronoiBubble builds a complete rendering and interaction layer on top:
+[d3-voronoi-treemap](https://github.com/Kcnarf/d3-voronoi-treemap) computes weighted Voronoi polygons — it outputs geometry only. VoronoiBubble adds a complete rendering and interaction layer, with three key features that d3-voronoi-treemap doesn't provide at all:
 
-| Feature | d3-voronoi-treemap | VoronoiBubble |
-|---|---|---|
-| Polygon computation | ✓ | ✓ |
-| SVG rendering | — | ✓ |
-| Pebble outline (rounded cells) | — | ✓ |
-| Hierarchical labels (3 levels) | — | ✓ |
-| Automatic label collision adjustment | — | ✓ |
-| Custom HTML label renderer | — | ✓ |
-| Color palette + per-level variation | — | ✓ |
-| Click / hover interaction | — | ✓ |
-| Popup helpers (Observable + DOM) | — | ✓ |
-| Region position hints | — | ✓ |
-| Deterministic layout via seed | — | ✓ |
-| Percentage labels | — | ✓ |
-| Korean number formatting (조/억/만) | — | ✓ |
+### 1. Region position control
 
-### Pebble outline
+Voronoi layouts are non-deterministic by default — you can't control which region ends up where. VoronoiBubble lets you seed the algorithm with position hints so specific regions appear in predictable areas (left, right, quadrant, circle, etc.). Coordinates are normalized automatically, and the algorithm still handles exact cell boundaries based on data weights.
 
-Renders each cell with a smooth, rounded border using Bézier curves — configurable per-level with `pebbleRound` and `pebbleWidth`.
+```javascript
+treemap.render(data, {
+  metaLabelPositions: [
+    { key: '긍정', depth: 1, x: 1, y: 0 },  // top-right
+    { key: '중립', depth: 1, x: 0.5, y: 0.5 },  // center
+    { key: '부정', depth: 1, x: 0, y: 1 }   // bottom-left
+  ]
+});
+```
 
-### Hierarchical labels with collision avoidance
+### 2. Label collision avoidance
 
-Three label levels (metaLabel → label → text) are automatically sized by cell area. The label adjuster detects overlaps between child labels and parent metaLabels, then repositions them to the direction with more available cell space — without moving them outside their polygon boundary.
+When a child label (label) overlaps with its parent's region label (metaLabel), the adjuster automatically moves it to whichever side has more free space — staying within the cell polygon boundary. Works with both SVG text and custom HTML renderers (`metaLabelRenderer`).
 
-### Custom HTML label renderer
+### 3. Pebble outline
 
-Replace the default SVG text with any HTML via `metaLabelRenderer` / `labelRenderer` callbacks. The library passes context (`key`, `fontSize`, `darkerColor`, `percentText`) so custom renderers can match the visual style automatically.
+Renders cell borders as smooth, rounded curves using Bézier interpolation — giving the chart its characteristic "pebble" look. Configurable per-level with `pebbleRound` (corner radius) and `pebbleWidth` (stroke weight).
 
-### Color system
+```javascript
+treemap.render(data, { pebble: true, pebbleRound: 20, pebbleWidth: 5 });
+```
 
-Colors are assigned from a palette by descending cell size. Each depth level gets a lighter/darker variation of the region color automatically. Override per-region with `metaLabelColors`, or retrieve applied colors via `getCellColors` for building legends.
+---
 
-### Region position hints
+Beyond these three, VoronoiBubble also provides:
 
-Pass `metaLabelPositions` to seed the Voronoi algorithm with preferred positions (e.g., quadrant, circle, or arbitrary coordinates). Coordinates are normalized automatically — useful for giving a specific layout intent while letting the algorithm handle exact boundaries.
+| Feature | Description |
+|---|---|
+| SVG rendering | Full SVG output with hierarchical cell layers |
+| Hierarchical labels | 3-level label system (metaLabel → label → text) auto-sized by cell area |
+| Custom HTML labels | `metaLabelRenderer` / `labelRenderer` callbacks for full HTML/CSS control |
+| Color system | Palette assigned by cell size; per-level lightness variation; `metaLabelColors` overrides |
+| Click / hover | Cell selection, highlight, `clickFunc` callback |
+| Popup helpers | `showVoronoiPopup` (Observable) and `createDOMPopup` (standard DOM) |
+| `getCellColors` | Retrieve applied colors after render — useful for building legends |
+| Deterministic layout | `seedRandom` option for reproducible layouts |
+| Percentage labels | `showPercent` option |
 
 ## CDN Usage (jsdelivr)
 

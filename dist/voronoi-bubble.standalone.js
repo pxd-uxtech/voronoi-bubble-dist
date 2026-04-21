@@ -26405,11 +26405,13 @@ const VoronoiTreemapHelpers = {
    */
   colorvariation: function (color, vdomain, value, desc) {
     const domain = d3.extent(vdomain);
-    let vScale = d3.scaleLinear().domain(domain).range([0.3, 1]);
     let c = d3.hsl(color);
     if (c.l > 0.8) c.l = 0.8;
-    c.l += (0.5 - vScale(value)) * 0.1;
-    if (c.l > 0.9) c.l = 0.9;
+    if (domain[0] !== domain[1]) {
+      let vScale = d3.scaleLinear().domain(domain).range([0.3, 1]);
+      c.l += (0.5 - vScale(value)) * 0.1;
+      if (c.l > 0.9) c.l = 0.9;
+    }
     return c.formatHex();
   },
 
@@ -27458,7 +27460,7 @@ class VoronoiTreemap {
 
   // === Default Color Palette ===
   static get DEFAULT_COLORS() {
-    return "#afc7dd,#ffe9a9,#f69f8f,#b4c8af,#e9e4d6,#bed1d8,#f8dba1,#fcbc8b,#d7e0c4,#c5b5a6,#b5ccc1,#e9bfb4,#e9f0f6,#fffefb,#fce0db,#e1e9df,#f1f5f7,#fef8ed,#feeada,#fbfcf9,#e5ded7,#e5edea,#fbf5f3,#96b6d3,#ffdf85,#f3836e,#a0b99a,#ddd4be,#a7c1cb,#f5cf80,#fba868,#c7d4ac,#b7a490,#a0bdb0,#e1a799,#d7e3ee,#fff7e1,#facbc3,#d3dfd0,#fdfcfa,#e1eaed,#fcefd5,#fddcc2,#f0f3e9,#dbd2c8,#d6e3dd,#f6e4df,#dee8f1,#fffaeb,#fbd4cc,#d9e3d6,#e7eef1,#fcf3df,#fee1cc,#f4f7ef,#dfd7ce,#dce7e2,#f8ebe7,#e5edf4,#fffdf5,#fcdcd6,#dfe7dc,#eef3f5,#fdf6e8,#fee7d6,#f9faf6,#e3dcd4,#e2ebe7,#faf1ef,#d0b7ba,#b8cec4,#d2b6b6,#b6bdd6,#d9b8b7,#ded5b6,#bac2d7,#c8d5be,#e3bfb7,#f9dfb3,#eac2b8,#c1d3da,#ddc7c1,#d9e2c7,#cfdad5,#eecdc1,#ccdddf,#c7d7e6,#ded6cf,#e7d1cb,#ced9e5,#eedbc8,#d7e3e2,#e3ead2,#ecdcd2,#d9e0e5,#efe1d2,#ebdad7,#eed6da,#e1e6de,#dde4e8,#eee1d8,#f5e8d7,#f1e6dd,#f5e8de,#f3e7e1,#f5eee1,#f5f2ec".split(
+    return "#afc7dd,#ffe9a9,#f69f8f,#b4c8af,#e9e4d6,#bed1d8,#f8dba1,#fcbc8b,#d7e0c4,#c5b5a6,#b5ccc1,#e9bfb4,#e9f0f6,#fffefb,#fce0db,#e1e9df,#f1f5f7,#fef8ed,#feeada,#fbfcf9,#e5ded7,#e5edea,#fbf5f3".split(
       ","
     );
   }
@@ -27489,7 +27491,8 @@ class VoronoiTreemap {
       metaLabelColors: [],
       // Custom label renderer options
       metaLabelRenderer: null, // (datum, defaultHtml, context) => HTML string
-      labelRenderer: null // (datum, defaultHtml, context) => HTML string
+      labelRenderer: null, // (datum, defaultHtml, context) => HTML string
+      cellImage: null // (datum) => { url, mode: 'fill'|'fit', opacity: 0~1, colorMode: 'original'|'tint' } | null
     };
   }
 
@@ -27548,6 +27551,7 @@ class VoronoiTreemap {
     this._createRegionColorScale();
     this._computeLayout();
     this._drawCells();
+    this._drawCellImages();
     this._drawLabels();
     this._buildLabelCache();
     this._applyPostEffects();
@@ -27937,6 +27941,105 @@ class VoronoiTreemap {
       });
   }
 
+  _drawCellImages() {
+    const { cellImage } = this.params;
+    if (!cellImage) return;
+
+    const depth3 = this.allNodes.filter((d) => d.depth === 3);
+    if (!depth3.length) return;
+
+    // Ensure <defs> exists in the SVG
+    let defs = this.svg.select("defs");
+    if (defs.empty()) defs = this.svg.insert("defs", ":first-child");
+
+    depth3.forEach((d) => {
+      const imgOpts = cellImage(d.data.data ?? d.data);
+      if (!imgOpts || !imgOpts.url) return;
+
+      const {
+        url,
+        mode = "fill",
+        opacity = 1,
+        colorMode = "original",
+      } = imgOpts;
+
+      const id = `cell-img-${d.id}`.replace(/[^a-zA-Z0-9-_]/g, "_");
+      const polygon = d.polygon;
+
+      // Bounding box of polygon
+      const xs = polygon.map((p) => p[0]);
+      const ys = polygon.map((p) => p[1]);
+      const bx = Math.min(...xs), by = Math.min(...ys);
+      const bw = Math.max(...xs) - bx, bh = Math.max(...ys) - by;
+
+      // ── clipPath ──────────────────────────────────────
+      const clipId = `${id}-clip`;
+      const clip = defs.append("clipPath").attr("id", clipId);
+      clip.append("path").attr("d", "M" + polygon.join("L") + "Z");
+
+      // ── tint filter ───────────────────────────────────
+      let filterAttr = null;
+      if (colorMode === "tint") {
+        const filterId = `${id}-tint`;
+        const filter = defs.append("filter")
+          .attr("id", filterId)
+          .attr("x", "0%").attr("y", "0%")
+          .attr("width", "100%").attr("height", "100%")
+          .attr("color-interpolation-filters", "sRGB");
+
+        // 1. grayscale
+        filter.append("feColorMatrix")
+          .attr("type", "saturate")
+          .attr("values", "0")
+          .attr("result", "gray");
+
+        // 2. flood with cell color
+        filter.append("feFlood")
+          .attr("flood-color", d.color)
+          .attr("flood-opacity", "1")
+          .attr("result", "color");
+
+        // 3. multiply blend: color * gray
+        filter.append("feBlend")
+          .attr("in", "color")
+          .attr("in2", "gray")
+          .attr("mode", "multiply")
+          .attr("result", "tinted");
+
+        // 4. restore alpha from original
+        filter.append("feComposite")
+          .attr("in", "tinted")
+          .attr("in2", "SourceGraphic")
+          .attr("operator", "in");
+
+        filterAttr = `url(#${filterId})`;
+      }
+
+      // ── image placement ───────────────────────────────
+      let imgX = bx, imgY = by, imgW = bw, imgH = bh;
+
+      if (mode === "fit") {
+        // inscribed square centered in bounding box
+        const side = Math.min(bw, bh) * 0.8;
+        imgX = bx + (bw - side) / 2;
+        imgY = by + (bh - side) / 2;
+        imgW = side;
+        imgH = side;
+      }
+
+      const imgEl = this.voronoiGroup.append("image")
+        .attr("href", url)
+        .attr("x", imgX).attr("y", imgY)
+        .attr("width", imgW).attr("height", imgH)
+        .attr("preserveAspectRatio", mode === "fit" ? "xMidYMid meet" : "xMidYMid slice")
+        .attr("clip-path", `url(#${clipId})`)
+        .attr("opacity", opacity)
+        .attr("pointer-events", "none");
+
+      if (filterAttr) imgEl.attr("filter", filterAttr);
+    });
+  }
+
   _drawLabels() {
     this._drawRegionLabels();
     this._drawBigClusterLabels();
@@ -28302,6 +28405,7 @@ class VoronoiTreemap {
  * @param {Object} [clicked.data] - Additional data associated with the cell
  * @param {Object} [options] - Popup configuration options
  * @param {string} [options.format="{text}"] - Template string for popup content (e.g., "{key}: {value}")
+ * @param {Function} [options.getData] - Custom function to extract data from clicked object. Receives clicked, returns data object. If omitted, uses default spread logic.
  * @param {string} [options.popupId="voronoi-popup"] - DOM ID for the popup element
  * @param {string} [options.className="voronoi-popup-container"] - CSS class for the popup
  * @param {Function} [options.onClose] - Callback function when popup is closed
@@ -28310,6 +28414,7 @@ class VoronoiTreemap {
 function showVoronoiPopup(clicked, options = {}) {
   const {
     format = "{text}",
+    getData = null,
     popupId = "voronoi-popup",
     className = "voronoi-popup-container",
     onClose = null
@@ -28354,12 +28459,14 @@ function showVoronoiPopup(clicked, options = {}) {
   const placeBelow = spaceAbove < 150 || spaceBelow > spaceAbove;
 
   // === Template substitution ===
-  const data = {
-    key: clicked.key,
-    ...(clicked.data || {}),
-    ...(clicked.data?.data || {}),
-    ...(clicked.d?.data?.data || {})
-  };
+  const data = getData
+    ? getData(clicked)
+    : {
+        key: clicked.key,
+        ...(clicked.data || {}),
+        ...(clicked.data?.data || {}),
+        ...(clicked.d?.data?.data || {})
+      };
 
   let content = format
     .replace(/\{(\w+)\}/g, (match, field) => {

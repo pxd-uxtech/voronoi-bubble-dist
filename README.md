@@ -67,6 +67,7 @@ Beyond these four, VoronoiBubble also provides:
 | `getCellColors` | Retrieve applied colors after render — useful for building legends |
 | Deterministic layout | `seedRandom` option for reproducible layouts |
 | Percentage labels | `showPercent` option |
+| Cell background image | `cellImage` callback — fill or fit mode, original or tint color |
 
 ## CDN Usage (jsdelivr)
 
@@ -241,8 +242,78 @@ If `text` is omitted, the hierarchy collapses to 2 levels (metaLabel → label).
   metaLabelColors: [            // Override colors for specific metaLabels (optional)
     { key: "긍정", color: "#4CAF50" },
     { key: "부정", color: "#F44336" }
-  ]
+  ],
+  cellImage: (d) => ({          // Per-cell background image (optional)
+    url: d.imageUrl,            //   Image URL
+    mode: 'fill',               //   'fill': covers the cell | 'fit': proportional to cell size
+    opacity: 0.8,               //   0–1
+    colorMode: 'original'       //   'original': true color | 'tint': grayscale + cell color blend
+  })
 }
+```
+
+## Cell Background Images
+
+Use `cellImage` to render images inside individual cells. Each cell can have its own image with independent display settings.
+
+```javascript
+treemap.render(data, {
+  cellImage: (d) => {
+    if (!d.imageUrl) return null;
+    return {
+      url: d.imageUrl,        // Image URL (required)
+      mode: 'fill',           // 'fill' | 'fit'
+      opacity: 0.8,           // 0–1 (default: 1)
+      colorMode: 'original'   // 'original' | 'tint'
+    };
+  }
+});
+```
+
+### `mode`
+
+| Value | Behavior |
+|---|---|
+| `fill` | Image covers the entire cell polygon (like `background-size: cover`) |
+| `fit` | Image is sized proportionally to the cell, centered (like `background-size: contain`) |
+
+### `colorMode`
+
+| Value | Behavior |
+|---|---|
+| `original` | Image renders in its original colors |
+| `tint` | Image is converted to grayscale then blended with the cell color via SVG multiply filter |
+
+### Example: Profile photos per bubble
+
+```javascript
+const data = [
+  { metaLabel: "팀A", label: "김민준", bubbleSize: 120, imageUrl: "photos/kim.jpg" },
+  { metaLabel: "팀A", label: "이서연", bubbleSize: 80,  imageUrl: "photos/lee.jpg" },
+  { metaLabel: "팀B", label: "박도현", bubbleSize: 100, imageUrl: "photos/park.jpg" }
+];
+
+treemap.render(data, {
+  cellImage: (d) => d.imageUrl ? {
+    url: d.imageUrl,
+    mode: 'fill',
+    opacity: 0.9,
+    colorMode: 'original'
+  } : null
+});
+```
+
+### Example: Tint mode — cell color applied to image
+
+```javascript
+treemap.render(data, {
+  cellImage: (d) => ({
+    url: d.imageUrl,
+    mode: 'fill',
+    opacity: 0.7,
+    colorMode: 'tint'   // grayscale image tinted with the cell's assigned color
+  })
+});
 ```
 
 ## Custom Label Renderers

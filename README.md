@@ -9,27 +9,42 @@ Copyright (c) 2025 UXtechLab. Licensed under [BUSL-1.1](https://mariadb.com/bsl1
 
 ## What's included beyond d3-voronoi-treemap
 
-[d3-voronoi-treemap](https://github.com/Kcnarf/d3-voronoi-treemap) computes weighted Voronoi polygons — it outputs geometry only and requires a `d3.hierarchy()` object as input. VoronoiBubble takes a flat array, handles the hierarchy conversion internally, and adds a complete rendering and interaction layer. Three key features stand out:
+[d3-voronoi-treemap](https://github.com/Kcnarf/d3-voronoi-treemap) computes weighted Voronoi polygons — it outputs geometry only and requires a manually constructed `d3.hierarchy()` object. VoronoiBubble takes a flat array and handles everything else. Four key features stand out:
 
-### 1. Region position control
+### 1. Flat array input — no manual hierarchy
+
+d3-voronoi-treemap requires you to build a nested tree with `d3.hierarchy()` before passing data. VoronoiBubble accepts a plain flat array and converts it to a 3-level hierarchy internally (metaLabel → label → text).
+
+```javascript
+// No d3.hierarchy() needed — just pass a flat array
+const data = [
+  { metaLabel: "긍정", label: "매우 좋음", bubbleSize: 120 },
+  { metaLabel: "긍정", label: "좋음",     bubbleSize:  80 },
+  { metaLabel: "부정", label: "불만족",   bubbleSize:  60 }
+];
+
+treemap.render(data, { width: 900, height: 600 });
+```
+
+### 2. Region position control
 
 Voronoi layouts are non-deterministic by default — you can't control which region ends up where. VoronoiBubble lets you seed the algorithm with position hints so specific regions appear in predictable areas (left, right, quadrant, circle, etc.). Coordinates are normalized automatically, and the algorithm still handles exact cell boundaries based on data weights.
 
 ```javascript
 treemap.render(data, {
   metaLabelPositions: [
-    { key: '긍정', depth: 1, x: 1, y: 0 },  // top-right
+    { key: '긍정', depth: 1, x: 1, y: 0 },      // top-right
     { key: '중립', depth: 1, x: 0.5, y: 0.5 },  // center
-    { key: '부정', depth: 1, x: 0, y: 1 }   // bottom-left
+    { key: '부정', depth: 1, x: 0, y: 1 }        // bottom-left
   ]
 });
 ```
 
-### 2. Label collision avoidance
+### 3. Label collision avoidance
 
 When a child label (label) overlaps with its parent's region label (metaLabel), the adjuster automatically moves it to whichever side has more free space — staying within the cell polygon boundary. Works with both SVG text and custom HTML renderers (`metaLabelRenderer`).
 
-### 3. Pebble outline
+### 4. Pebble outline
 
 Renders cell borders as smooth, rounded curves using Bézier interpolation — giving the chart its characteristic "pebble" look. Configurable per-level with `pebbleRound` (corner radius) and `pebbleWidth` (stroke weight).
 
@@ -39,7 +54,7 @@ treemap.render(data, { pebble: true, pebbleRound: 20, pebbleWidth: 5 });
 
 ---
 
-Beyond these three, VoronoiBubble also provides:
+Beyond these four, VoronoiBubble also provides:
 
 | Feature | Description |
 |---|---|

@@ -5,6 +5,8 @@ Voronoi treemap visualization engine powering the ○○Bubble series.
 Originally created by [@taekie](https://github.com/taekie).  
 Copyright (c) 2025 UXtechLab. Licensed under [BUSL-1.1](https://mariadb.com/bsl11/).
 
+![VoronoiBubble Example](files/example-preview.png)
+
 ## CDN Usage (jsdelivr)
 
 ### ES Module (Recommended)

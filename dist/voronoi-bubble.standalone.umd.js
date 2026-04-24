@@ -28432,6 +28432,20 @@ body {
               return `${orig} scale(${textScale})`;
             });
 
+          svg.selectAll('foreignObject.region-label-foreign, foreignObject.bigcluster-label-foreign')
+            .each(function() {
+              const fo = d3.select(this);
+              if (!fo.attr('data-orig-x')) {
+                fo.attr('data-orig-x', fo.attr('x') || '0')
+                  .attr('data-orig-y', fo.attr('y') || '0')
+                  .attr('data-orig-w', fo.attr('width') || '0')
+                  .attr('data-orig-h', fo.attr('height') || '0');
+              }
+              const cx = parseFloat(fo.attr('data-orig-x')) + parseFloat(fo.attr('data-orig-w')) / 2;
+              const cy = parseFloat(fo.attr('data-orig-y')) + parseFloat(fo.attr('data-orig-h')) / 2;
+              fo.attr('transform', `translate(${cx * (1 - textScale)},${cy * (1 - textScale)}) scale(${textScale})`);
+            });
+
           // re-truncate text elements when zoom level changes by >20%
           if (Math.abs(k - lastK) / lastK > 0.2) {
             lastK = k;

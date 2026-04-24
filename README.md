@@ -267,9 +267,26 @@ If `text` is omitted, the hierarchy collapses to 2 levels (metaLabel → label).
     mode: 'fill',               //   'fill': covers the cell | 'fit': proportional to cell size
     opacity: 0.8,               //   0–1
     colorMode: 'original'       //   'original': true color | 'tint': grayscale + cell color blend
-  })
+  }),
+  labelMode: 'show'             // 'show' | 'faded' | 'hidden' — leaf label + cell border visibility
 }
 ```
+
+## Label Display Mode
+
+Use `labelMode` to control the visibility of leaf-level labels (depth-3 text) and their cell borders.
+
+| Value | Label opacity | Cell border opacity |
+|---|---|---|
+| `'show'` | 1 | 1 |
+| `'faded'` | 0.6 | 0.6 |
+| `'hidden'` | 0 | 0 |
+
+```javascript
+treemap.render(data, { labelMode: 'hidden' });
+```
+
+When zoomed in, labels and cell borders fade in regardless of `labelMode` — at 2× zoom they are fully visible. Zooming back out restores the original mode.
 
 ## Cell Background Images
 

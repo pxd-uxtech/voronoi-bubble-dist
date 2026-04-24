@@ -71,16 +71,42 @@ Beyond these four, VoronoiBubble also provides:
 
 ## CDN Usage (jsdelivr)
 
-### ES Module (Recommended)
+### Which file to use?
+
+| Scenario | File | How |
+|---|---|---|
+| `import()` or `import` statement | `voronoi-bubble.standalone.js` | ESM dynamic import |
+| `<script>` tag (local/offline) | `voronoi-bubble.standalone.umd.js` | `window.VoronoiTreemapModule` global |
+| Observable notebook | `voronoi-bubble.standalone.js` | ESM import |
+| Build tool (webpack/vite) | `voronoi-bubble.esm.js` | peer deps required |
+
+> **⚠️ Do not use the `.umd.js` file with `import()`.**  
+> UMD bundles expose a global variable, not ES module named exports.  
+> Use `.standalone.js` (ESM) for any `import`-based loading.
+
+### Dynamic import (ESM)
 
 ```javascript
-import { VoronoiTreemap } from 'https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@{hash}/dist/voronoi-bubble.esm.js';
+const { VoronoiTreemap, showVoronoiPopup } = await import(
+  'https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@{hash}/dist/voronoi-bubble.standalone.js'
+);
 
 const treemap = new VoronoiTreemap();
 const svg = treemap.render(data, options);
 ```
 
-### UMD Bundle
+### `<script>` tag (UMD standalone)
+
+```html
+<script src="https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@{hash}/dist/voronoi-bubble.standalone.umd.js"></script>
+<script>
+  const { VoronoiTreemap, showVoronoiPopup } = VoronoiTreemapModule;
+  const treemap = new VoronoiTreemap();
+  const svg = treemap.render(data, options);
+</script>
+```
+
+### With peer dependencies (UMD)
 
 ```html
 <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
@@ -89,17 +115,10 @@ const svg = treemap.render(data, options);
 <script src="https://cdn.jsdelivr.net/npm/d3-voronoi-treemap@1"></script>
 <script src="https://cdn.jsdelivr.net/npm/seedrandom@3"></script>
 <script src="https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@{hash}/dist/voronoi-bubble.umd.js"></script>
-
 <script>
   const treemap = new VoronoiTreemap.VoronoiTreemap();
   const svg = treemap.render(data, options);
 </script>
-```
-
-### Minified Version
-
-```html
-<script src="https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@{hash}/dist/voronoi-bubble.min.js"></script>
 ```
 
 ## Observable Usage

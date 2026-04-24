@@ -27524,7 +27524,8 @@ class VoronoiTreemap {
       metaLabelRenderer: null, // (datum, defaultHtml, context) => HTML string
       labelRenderer: null, // (datum, defaultHtml, context) => HTML string
       adaptiveIterations: true,
-      cellImage: null // (datum) => { url, mode: 'fill'|'fit', opacity: 0~1, colorMode: 'original'|'tint' } | null
+      cellImage: null, // (datum) => { url, mode: 'fill'|'fit', opacity: 0~1, colorMode: 'original'|'tint' } | null
+      labelMode: 'show' // 'show' | 'faded' | 'hidden'
     };
   }
 
@@ -27587,6 +27588,7 @@ class VoronoiTreemap {
     this._drawLabels();
     this._buildLabelCache();
     this._applyPostEffects();
+    this._applyLabelMode();
     this._setupZoom();
 
     return this.svg.node();
@@ -28395,6 +28397,16 @@ class VoronoiTreemap {
     );
   }
 
+  _applyLabelMode(opacity) {
+    const { labelMode } = this.params;
+    const op = opacity !== undefined ? opacity
+      : labelMode === 'show' ? 1
+      : labelMode === 'faded' ? 0.6
+      : 0;
+    this.svg.selectAll('.labels tspan').style('opacity', op);
+    this.svg.selectAll('.textArea').style('stroke-opacity', op);
+  }
+
   _setupZoom() {
     const svg = this.svg;
     const chartGroup = this.chartGroup;
@@ -28413,6 +28425,14 @@ class VoronoiTreemap {
         // below threshold: keep screen size constant; above: grow with zoom (max 2x screen size)
         const threshold = 3;
         const textScale = Math.max(1 / k, 1 / (threshold * 2));
+
+        // labelMode: fade in labels/borders as zoom increases
+        const modeOpacity = this.params.labelMode === 'show' ? 1
+          : this.params.labelMode === 'faded' ? 0.6
+          : 0;
+        const zoomOpacity = modeOpacity + (1 - modeOpacity) * Math.min(1, k - 1);
+        svg.selectAll('.labels tspan').style('opacity', zoomOpacity);
+        svg.selectAll('.textArea').style('stroke-opacity', zoomOpacity);
 
         // keep stroke visually thin as zoom increases
         svg.selectAll('.textArea').style('stroke-width', `${0.5 / k}px`);

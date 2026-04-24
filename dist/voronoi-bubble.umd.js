@@ -190,6 +190,7 @@
 
           outlineGroup
             .append('path')
+            .attr('class', 'pebble-outline')
             .attr('d', `${originalPath} ${smoothedPath}`)
             .attr('fill', '#555')
             .attr('stroke', '#555')
@@ -976,9 +977,10 @@
      * @param {boolean} [getBoxInfo=false] - If true, return [maxWidth, lineCount] instead of HTML
      * @returns {string|number[]} HTML string for tspans, or [maxWidth, lineCount] if getBoxInfo is true
      */
-    multiline: function (text, getBoxInfo) {
+    multiline: function (text, getBoxInfo, charsPerLine) {
       const inputText = text ? String(text) : "";
       const isLatinText = !/[^A-Za-z0-9\s\-.,!?:;@]/.test(inputText);
+      const lineLimit = charsPerLine ?? (isLatinText ? 9 : 7);
       const forcedLineBreaks = inputText.split("\n");
       let allLines = [];
 
@@ -990,7 +992,7 @@
         currentLines[0] = "";
 
         words.forEach((word) => {
-          if (word.length + count > (isLatinText ? 9 : 7)) {
+          if (word.length + count > lineLimit) {
             lineCount += 1;
             count = 0;
             currentLines[lineCount] = "";
@@ -1056,7 +1058,7 @@
 
       const html = allLines
         .map(
-          (d, i) => `<tspan x=${-maxLength / 3}em dy=${1}em>${d.trim()}</tspan>`
+          (d, i) => `<tspan x=${-maxLength / 3}em dy=${1.4}em>${d.trim()}</tspan>`
         )
         .join("");
       return `<tspan x=${0}em y=${-allLines.length / 2}em>${html}</tspan>`;
@@ -1233,6 +1235,27 @@
      * @param {number} n - Number to format
      * @returns {string} Formatted string with Korean number units
      */
+    truncateByCell: function (text, hierarchy, d, baseFontPx = 16, maxLines = 2) {
+      if (!text) return { text, charsPerLine: 7 };
+      const polygon = d.polygon;
+      if (!polygon) return { text, charsPerLine: 7 };
+      const xs = polygon.map((p) => p[0]);
+      const ys = polygon.map((p) => p[1]);
+      const cellW = Math.max(...xs) - Math.min(...xs);
+      const cellH = Math.max(...ys) - Math.min(...ys);
+      const fontEm = this.fontScale2(hierarchy, d);
+      const fontPx = fontEm * baseFontPx;
+      const isLatin = !/[^\x00-\x7F]/.test(text);
+      // CJK chars are ~1em wide; latin ~0.55em; voronoi bbox is irregular so use 60%
+      const charPx = isLatin ? fontPx * 0.55 : fontPx;
+      const effectiveW = cellW * 0.6;
+      const charsPerLine = Math.max(1, Math.floor(effectiveW / charPx));
+      const linesFit = Math.max(1, Math.floor(cellH / (fontPx * 1.4)));
+      const limit = Math.max(5, Math.min(30, charsPerLine * linesFit));
+      const truncated = text.length <= limit ? text : text.slice(0, limit) + '…';
+      return { text: truncated, charsPerLine };
+    },
+
     bigFormat: function (n) {
       const 조 = n > 10 ** 12 ? Math.floor(n / 10 ** 12) % 10 ** 4 : 0;
       const 억 = n > 10 ** 8 ? Math.round(n / 10 ** 8) % 10 ** 4 : 0;
@@ -1660,6 +1683,7 @@
     <div style="font-size: 1.2em; font-weight: bold; margin-bottom: 0.5em;">
       ${(data.label ?? data.bigClusterLabel) || 'N/A'}
     </div>
+    ${data.text ? `<div style="margin-bottom: 0.5em; color: #555;">${data.text}</div>` : ''}
     <div style="margin-bottom: 0.3em;">
       <strong>Region:</strong> ${(data.metaLabel ?? data.region) || 'N/A'}
     </div>
@@ -2069,6 +2093,7 @@ body {
       this._drawLabels();
       this._buildLabelCache();
       this._applyPostEffects();
+      this._setupZoom();
 
       return this.svg.node();
     }
@@ -2780,6 +2805,16 @@ body {
         .append("text")
         .attr("class", (d) => `text-item label-${d.id}`)
         .attr("data-cluster", (d) => d.data.key)
+        .attr("data-full-text", (d) => d.data.key)
+        .attr("data-font-em", (d) => VoronoiTreemapHelpers.fontScale2(this.hierarchy, d))
+        .attr("data-cell-w", (d) => {
+          const xs = d.polygon.map(p => p[0]);
+          return Math.max(...xs) - Math.min(...xs);
+        })
+        .attr("data-cell-h", (d) => {
+          const ys = d.polygon.map(p => p[1]);
+          return Math.max(...ys) - Math.min(...ys);
+        })
         .attr("data-value", (d) => d.value)
         .attr("data-ratio", (d) => d.value / this.totalValue)
         .attr("text-anchor", "start")
@@ -2810,7 +2845,10 @@ body {
             ]})`
             : `translate(${VoronoiTreemapHelpers.getLabelPos(this, d)})`;
         })
-        .html((d) => VoronoiTreemapHelpers.multiline(d.data.key))
+        .html((d) => {
+          const { text, charsPerLine } = VoronoiTreemapHelpers.truncateByCell(d.data.key, this.hierarchy, d);
+          return VoronoiTreemapHelpers.multiline(text, false, charsPerLine);
+        })
         .attr("opacity", (d) => (d.value / this.totalValue > ratioLimit ? 1 : 0));
     }
 
@@ -2861,6 +2899,73 @@ body {
         pebbleWidth,
         VoronoiTreemapHelpers.colorVar.bind(VoronoiTreemapHelpers)
       );
+    }
+
+    _setupZoom() {
+      const svg = this.svg;
+      const chartGroup = this.chartGroup;
+      const baseFontPx = 16;
+      let lastK = 1;
+
+      const zoom = d3.zoom()
+        .scaleExtent([1, 12])
+        .translateExtent([[0, 0], [this.width, this.height]])
+        .on('zoom', (event) => {
+          const { x, y, k } = event.transform;
+          chartGroup.attr('transform',
+            `translate(${this.margin.left + x},${this.margin.top + y}) scale(${k})`
+          );
+
+          // below threshold: keep screen size constant; above: grow with zoom (max 2x screen size)
+          const threshold = 3;
+          const textScale = Math.max(1 / k, 1 / (threshold * 2));
+
+          // keep stroke visually thin as zoom increases
+          svg.selectAll('.textArea').style('stroke-width', `${0.5 / k}px`);
+          svg.selectAll('.labelArea').style('stroke-width', `${0.7 / k}px`);
+          svg.selectAll('.metaLabelArea').style('stroke-width', `${1.5 / k}px`);
+          svg.selectAll('text.text-item, text.label-item, .region text, .label1 text, .percent text')
+            .attr('transform', function() {
+              const el = d3.select(this);
+              const orig = el.attr('data-orig-transform') || el.attr('transform') || 'translate(0,0)';
+              if (!el.attr('data-orig-transform')) el.attr('data-orig-transform', orig);
+              return `${orig} scale(${textScale})`;
+            });
+
+          // re-truncate text elements when zoom level changes by >20%
+          if (Math.abs(k - lastK) / lastK > 0.2) {
+            lastK = k;
+            svg.selectAll('text.text-item[data-full-text]').each(function() {
+              const el = d3.select(this);
+              const fullText = el.attr('data-full-text');
+              const cellW = parseFloat(el.attr('data-cell-w') || 0);
+              const cellH = parseFloat(el.attr('data-cell-h') || 0);
+              const fontEm = parseFloat(el.attr('data-font-em') || 0.7);
+              const fontPx = fontEm * baseFontPx;
+              const isLatin = !/[^\x00-\x7F]/.test(fullText);
+              const charPx = isLatin ? fontPx * 0.55 : fontPx;
+              const charsPerLine = Math.max(1, Math.floor((cellW * k * 0.6) / charPx));
+              const linesFit = Math.max(1, Math.floor((cellH * k) / (fontPx * 1.4)));
+              const limit = Math.max(5, Math.min(fullText.length, charsPerLine * linesFit));
+              const truncated = fullText.length <= limit ? fullText : fullText.slice(0, limit) + '…';
+              el.html(VoronoiTreemapHelpers.multiline(truncated, false, charsPerLine));
+            });
+          }
+        });
+
+      svg.call(zoom);
+
+      // snap to origin when zoomed out to minimum
+      zoom.on('end', (event) => {
+        if (event.transform.k <= 1) {
+          svg.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
+        }
+      });
+
+      // double-click to reset
+      svg.on('dblclick.zoom', () => {
+        svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity);
+      });
     }
   }
 

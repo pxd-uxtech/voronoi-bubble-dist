@@ -977,7 +977,7 @@
      * @param {boolean} [getBoxInfo=false] - If true, return [maxWidth, lineCount] instead of HTML
      * @returns {string|number[]} HTML string for tspans, or [maxWidth, lineCount] if getBoxInfo is true
      */
-    multiline: function (text, getBoxInfo, charsPerLine) {
+    multiline: function (text, getBoxInfo, charsPerLine, lineHeight = 1) {
       const inputText = text ? String(text) : "";
       const isLatinText = !/[^A-Za-z0-9\s\-.,!?:;@]/.test(inputText);
       const lineLimit = charsPerLine ?? (isLatinText ? 9 : 7);
@@ -1058,7 +1058,7 @@
 
       const html = allLines
         .map(
-          (d, i) => `<tspan x=${-maxLength / 3}em dy=${1.4}em>${d.trim()}</tspan>`
+          (d, i) => `<tspan x=${-maxLength / 3}em dy=${lineHeight}em>${d.trim()}</tspan>`
         )
         .join("");
       return `<tspan x=${0}em y=${-allLines.length / 2}em>${html}</tspan>`;
@@ -2849,7 +2849,7 @@ body {
         })
         .html((d) => {
           const { text, charsPerLine } = VoronoiTreemapHelpers.truncateByCell(d.data.key, this.hierarchy, d);
-          return VoronoiTreemapHelpers.multiline(text, false, charsPerLine);
+          return VoronoiTreemapHelpers.multiline(text, false, charsPerLine, 1.4);
         })
         .attr("opacity", (d) => (d.value / this.totalValue > ratioLimit ? 1 : 0));
     }
@@ -2982,7 +2982,7 @@ body {
               const linesFit = Math.max(1, Math.floor((cellH * k) / (fontPx * 1.4)));
               const limit = Math.max(5, Math.min(fullText.length, charsPerLine * linesFit));
               const truncated = fullText.length <= limit ? fullText : fullText.slice(0, limit) + '…';
-              el.html(VoronoiTreemapHelpers.multiline(truncated, false, charsPerLine));
+              el.html(VoronoiTreemapHelpers.multiline(truncated, false, charsPerLine, 1.4));
             });
           }
         });

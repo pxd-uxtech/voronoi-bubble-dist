@@ -2905,9 +2905,10 @@ class VoronoiTreemap {
           `translate(${this.margin.left + x},${this.margin.top + y}) scale(${k})`
         );
 
-        // below threshold: keep screen size constant; above: grow with zoom (max 2x screen size)
-        const threshold = 3;
-        const textScale = Math.max(1 / k, 1 / (threshold * 2));
+        // phase 1 (k≤growMax): text grows with zoom
+        // phase 2 (k>growMax): text held at growMax screen size, char count grows instead
+        const growMax = 1.5;
+        const textScale = k <= growMax ? 1 : growMax / k;
 
         // labelMode: fade in labels/borders as zoom increases
         const modeOpacity = this.params.labelMode === 'show' ? 1
@@ -2955,8 +2956,9 @@ class VoronoiTreemap {
             const fontPx = fontEm * baseFontPx;
             const isLatin = !/[^\x00-\x7F]/.test(fullText);
             const charPx = isLatin ? fontPx * 0.55 : fontPx;
-            const charsPerLine = Math.max(1, Math.floor((cellW * k * 0.6) / charPx));
-            const linesFit = Math.max(1, Math.floor((cellH * k) / (fontPx * 1.4)));
+            // text-to-cell ratio scales by 1/textScale; identical to base in phase 1
+            const charsPerLine = Math.max(1, Math.floor((cellW * 0.6) / (charPx * textScale)));
+            const linesFit = Math.max(1, Math.floor(cellH / (fontPx * 1.4 * textScale)));
             const limit = Math.max(5, Math.min(fullText.length, charsPerLine * linesFit));
             const truncated = fullText.length <= limit ? fullText : fullText.slice(0, limit) + '…';
             el.html(VoronoiTreemapHelpers.multiline(truncated, false, charsPerLine, 1.4));

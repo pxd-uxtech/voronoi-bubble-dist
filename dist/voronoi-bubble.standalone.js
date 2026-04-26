@@ -28488,13 +28488,13 @@ class VoronoiTreemap {
     // snap to origin when zoomed out to minimum
     zoom.on('end', (event) => {
       if (event.transform.k <= 1) {
-        svg.transition().duration(300).call(zoom.transform, d3.zoomIdentity);
+        svg.transition().duration(120).call(zoom.transform, d3.zoomIdentity);
       }
     });
 
     // double-click to reset
     svg.on('dblclick.zoom', () => {
-      svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity);
+      svg.transition().duration(200).call(zoom.transform, d3.zoomIdentity);
     });
   }
 }

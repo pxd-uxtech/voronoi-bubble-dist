@@ -27526,9 +27526,11 @@ body {
         pebbleRound: 25,
         pebbleWidth: 3,
         keyColors: [],
-        // Custom label renderer options
-        metaLabelRenderer: null, // (datum, defaultHtml, context) => HTML string
-        labelRenderer: null, // (datum, defaultHtml, context) => HTML string
+        // Custom HTML label renderer — single callback dispatches by ctx.depth
+        // (datum, defaultHtml, ctx) => HTML string. ctx.depth is 1 (group) or 2 (subgroup).
+        renderLabel: null,
+        metaLabelRenderer: null, // (datum, defaultHtml, context) => HTML string (depth 1 only)
+        labelRenderer: null,     // (datum, defaultHtml, context) => HTML string (depth 2 only)
         adaptiveIterations: true,
         cellImage: null, // (datum) => { url, mode: 'fill'|'fit', opacity: 0~1, colorMode: 'original'|'tint' } | null
         labelMode: 'show', // 'show' | 'faded' | 'hidden'
@@ -27573,10 +27575,17 @@ body {
         if ('metaLabelColors' in normalizedOptions) normalizedOptions.keyColors = normalizedOptions.metaLabelColors;
         else if ('regionColors' in normalizedOptions) normalizedOptions.keyColors = normalizedOptions.regionColors;
       }
+      // Renderer aliases: regionLabelRenderer/bigClusterLabelRenderer → metaLabelRenderer/labelRenderer
       if ('regionLabelRenderer' in normalizedOptions && !('metaLabelRenderer' in normalizedOptions))
         normalizedOptions.metaLabelRenderer = normalizedOptions.regionLabelRenderer;
       if ('bigClusterLabelRenderer' in normalizedOptions && !('labelRenderer' in normalizedOptions))
         normalizedOptions.labelRenderer = normalizedOptions.bigClusterLabelRenderer;
+      // Unified renderLabel → fans out to both depth renderers (legacy options take precedence if set)
+      if (normalizedOptions.renderLabel) {
+        const r = normalizedOptions.renderLabel;
+        if (!normalizedOptions.metaLabelRenderer) normalizedOptions.metaLabelRenderer = (d, html, ctx) => r(d, html, ctx);
+        if (!normalizedOptions.labelRenderer) normalizedOptions.labelRenderer = (d, html, ctx) => r(d, html, ctx);
+      }
 
       this.params = { ...VoronoiTreemap.DEFAULT_OPTIONS, ...normalizedOptions };
 

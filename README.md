@@ -369,38 +369,39 @@ treemap.render(data, {
 
 ## Custom Label Renderers
 
-Use `metaLabelRenderer` and `labelRenderer` to fully customize label appearance by returning an HTML string.
+Use `renderLabel` to fully customize label appearance by returning an HTML string. The same callback handles both depths — branch on `ctx.depth`.
 
-### `metaLabelRenderer`
+### `renderLabel`
 
 ```javascript
-metaLabelRenderer: (d, defaultHtml, ctx) => {
+renderLabel: (d, defaultHtml, ctx) => {
   // d           - data node
   // defaultHtml - default HTML string
   // ctx         - context object:
-  //   ctx.key         - metaLabel name
+  //   ctx.depth       - 1 (group) or 2 (subgroup)
+  //   ctx.key         - label text at this depth
   //   ctx.fontSize    - computed font size (em base value)
-  //   ctx.darkerColor - a darker shade of the region color
+  //   ctx.color       - cell color
+  //   ctx.darkerColor - a darker shade of the cell color
   //   ctx.percentText - percentage string (e.g. "34.5%")
 
-  return `<div>...</div>`;  // return custom HTML
-  // return "" to hide the label
-  // return defaultHtml to keep default rendering
+  if (ctx.depth === 1) return `<div>...</div>`;  // group label
+  if (ctx.depth === 2) return `<div>...</div>`;  // subgroup label
+  // return "" to hide a label
 }
 ```
 
-### Example: Outlined percent display
+### Example: Outlined percent display for groups
 
 ```javascript
 treemap.render(data, {
   showMetaLabel: true,
   showPercent: true,
-  metaLabelRenderer: (d, defaultHtml, ctx) => {
-    const keyStr = String(ctx.key ?? "");
+  renderLabel: (d, defaultHtml, ctx) => {
+    if (ctx.depth !== 1) return defaultHtml;
 
-    if (/^\d+$/.test(keyStr) || /^cluster\s*\d+$/i.test(keyStr)) {
-      return "";
-    }
+    const keyStr = String(ctx.key ?? "");
+    if (/^\d+$/.test(keyStr) || /^cluster\s*\d+$/i.test(keyStr)) return "";
 
     return `
       <div style="text-align:center; color:#fff;">
@@ -424,13 +425,14 @@ treemap.render(data, {
 });
 ```
 
-### `labelRenderer`
+### Per-depth shortcuts (legacy — still supported)
+
+If you only want to customize one depth, the per-depth options stay available and take precedence over `renderLabel`:
 
 ```javascript
 treemap.render(data, {
-  labelRenderer: (d, defaultHtml, ctx) => {
-    return `<div style="color:#fff;">${ctx.key}</div>`;
-  }
+  metaLabelRenderer: (d, defaultHtml, ctx) => `<div>...</div>`,  // depth 1 only
+  labelRenderer:     (d, defaultHtml, ctx) => `<div>...</div>`   // depth 2 only
 });
 ```
 

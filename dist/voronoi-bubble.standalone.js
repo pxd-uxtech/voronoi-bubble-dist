@@ -27525,7 +27525,9 @@ class VoronoiTreemap {
       labelRenderer: null, // (datum, defaultHtml, context) => HTML string
       adaptiveIterations: true,
       cellImage: null, // (datum) => { url, mode: 'fill'|'fit', opacity: 0~1, colorMode: 'original'|'tint' } | null
-      labelMode: 'show' // 'show' | 'faded' | 'hidden'
+      labelMode: 'show', // 'show' | 'faded' | 'hidden'
+      levels: ['metaLabel', 'label', 'text'], // field names per depth (0, 1, 2)
+      value: 'bubbleSize' // field name for size weight
     };
   }
 
@@ -27568,12 +27570,26 @@ class VoronoiTreemap {
 
     this.params = { ...VoronoiTreemap.DEFAULT_OPTIONS, ...normalizedOptions };
 
-    // Normalize legacy field names in data
+    // Normalize field names: custom levels/value -> standard metaLabel/label/text/bubbleSize
+    const levels = this.params.levels;
+    const valueField = this.params.value;
+    const stdLevels = ['metaLabel', 'label', 'text'];
+    const customLevels = !levels.every((f, i) => f === stdLevels[i]);
+    const customValue = valueField !== 'bubbleSize';
+
     this.data = data.map(d => {
       const normalized = { ...d };
+      // Legacy field name aliases
       if (!('metaLabel' in normalized) && 'region' in normalized) normalized.metaLabel = normalized.region;
       if (!('label' in normalized) && 'bigClusterLabel' in normalized) normalized.label = normalized.bigClusterLabel;
       if (!('text' in normalized) && 'clusterLabel' in normalized) normalized.text = normalized.clusterLabel;
+      // Custom levels mapping
+      if (customLevels) {
+        if (levels[0] !== undefined) normalized.metaLabel = d[levels[0]];
+        if (levels[1] !== undefined) normalized.label = d[levels[1]];
+        if (levels[2] !== undefined) normalized.text = d[levels[2]];
+      }
+      if (customValue) normalized.bubbleSize = d[valueField];
       return normalized;
     });
 

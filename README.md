@@ -232,6 +232,25 @@ root
 
 If `text` is omitted, the hierarchy collapses to 2 levels (metaLabel → label).
 
+### Custom field names
+
+Use `levels` and `value` to map your own field names instead of `metaLabel`/`label`/`text`/`bubbleSize`:
+
+```javascript
+treemap.render(data, {
+  levels: ['department', 'team', 'person'],  // depth 0, 1, 2
+  value: 'count',                            // size field
+});
+
+// data records can now use any field names:
+[
+  { department: '개발', team: 'FE', person: '김민준', count: 120 },
+  { department: '개발', team: 'BE', person: '이서연', count:  80 }
+]
+```
+
+Defaults are `levels: ['metaLabel', 'label', 'text']` and `value: 'bubbleSize'`, so existing code keeps working without changes. Provide fewer entries in `levels` (e.g. `['team', 'person']`) for a 2-level hierarchy.
+
 ## Configuration Options
 
 ```javascript

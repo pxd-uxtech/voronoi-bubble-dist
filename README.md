@@ -13,18 +13,24 @@ Copyright (c) 2025 UXtechLab. Licensed under [BUSL-1.1](https://mariadb.com/bsl1
 
 ### 1. Flat array input — no manual hierarchy
 
-d3-voronoi-treemap requires you to build a nested tree with `d3.hierarchy()` before passing data. VoronoiBubble accepts a plain flat array and converts it to a 3-level hierarchy internally (metaLabel → label → text).
+d3-voronoi-treemap requires you to build a nested tree with `d3.hierarchy()` before passing data. VoronoiBubble accepts a plain flat array and converts it to a 3-level hierarchy internally (group → subgroup → item).
 
 ```javascript
 // No d3.hierarchy() needed — just pass a flat array
 const data = [
-  { metaLabel: "긍정", label: "매우 좋음", text: "기대됨",  bubbleSize: 120 },
-  { metaLabel: "긍정", label: "좋음",     text: "만족",    bubbleSize:  80 },
-  { metaLabel: "부정", label: "불만족",   text: "아쉬움",  bubbleSize:  60 }
+  { group: "Sales",     subgroup: "Domestic",      item: "Seoul",   value: 120 },
+  { group: "Sales",     subgroup: "Domestic",      item: "Busan",   value:  80 },
+  { group: "Marketing", subgroup: "International", item: "Tokyo",   value:  60 }
 ];
 
-treemap.render(data, { width: 900, height: 600 });
+treemap.render(data, {
+  levels: ['group', 'subgroup', 'item'],
+  value: 'value',
+  width: 900, height: 600
+});
 ```
+
+Use any field names you want — `levels` and `value` map them. The defaults are `levels: ['metaLabel', 'label', 'text']` and `value: 'bubbleSize'`.
 
 ### 2. Region position control
 
@@ -33,16 +39,16 @@ Voronoi layouts are non-deterministic by default — you can't control which reg
 ```javascript
 treemap.render(data, {
   positions: [
-    { key: '긍정', depth: 1, x: 1, y: 0 },      // top-right
-    { key: '중립', depth: 1, x: 0.5, y: 0.5 },  // center
-    { key: '부정', depth: 1, x: 0, y: 1 }        // bottom-left
+    { key: 'Sales',     depth: 1, x: 1,   y: 0   },  // top-right
+    { key: 'Marketing', depth: 1, x: 0.5, y: 0.5 },  // center
+    { key: 'Support',   depth: 1, x: 0,   y: 1   }   // bottom-left
   ]
 });
 ```
 
 ### 3. Label collision avoidance
 
-When a child label (label) overlaps with its parent's region label (metaLabel), the adjuster automatically moves it to whichever side has more free space — staying within the cell polygon boundary. Works with both SVG text and custom HTML renderers (`metaLabelRenderer`).
+When a subgroup label overlaps with its parent group label, the adjuster automatically moves it to whichever side has more free space — staying within the cell polygon boundary. Works with both SVG text and custom HTML renderers (`metaLabelRenderer`).
 
 ### 4. Pebble outline
 
@@ -59,9 +65,9 @@ Beyond these four, VoronoiBubble also provides:
 | Feature | Description |
 |---|---|
 | SVG rendering | Full SVG output with hierarchical cell layers |
-| Hierarchical labels | 3-level label system (metaLabel → label → text) auto-sized by cell area |
+| Hierarchical labels | 3-level label system (group → subgroup → item) auto-sized by cell area |
 | Custom HTML labels | `metaLabelRenderer` / `labelRenderer` callbacks for full HTML/CSS control |
-| Color system | Palette assigned by cell size; per-level lightness variation; `metaLabelColors` overrides |
+| Color system | Palette assigned by cell size; per-level lightness variation; `keyColors` overrides |
 | Click / hover | Cell selection, highlight, `clickFunc` callback |
 | Popup helpers | `showVoronoiPopup` (Observable) and `createDOMPopup` (standard DOM) |
 | `getCellColors` | Retrieve applied colors after render — useful for building legends |
@@ -141,9 +147,9 @@ For Observable notebooks, use the standalone bundle that includes all dependenci
 // Cell 2: Create visualization with popup
 chart = {
   const data = [
-    { metaLabel: "A", label: "Item 1", bubbleSize: "100" },
-    { metaLabel: "A", label: "Item 2", bubbleSize: "80" },
-    { metaLabel: "B", label: "Item 3", bubbleSize: "120" }
+    { group: "A", subgroup: "Item 1", value: 100 },
+    { group: "A", subgroup: "Item 2", value:  80 },
+    { group: "B", subgroup: "Item 3", value: 120 }
   ];
 
   const treemap = new VoronoiTreemap();
@@ -152,6 +158,8 @@ chart = {
     width: 900,
     height: 600,
     maptitle: 'My Treemap',
+    levels: ['group', 'subgroup'],
+    value: 'value',
     positions: 'auto',
     showMetaLabel: true,
     showLabel: true,
@@ -184,9 +192,9 @@ For local HTML files (using `file://` protocol), use the UMD standalone bundle:
     const { VoronoiTreemap, showVoronoiPopup } = VoronoiTreemapModule;
 
     const data = [
-      { metaLabel: "A", label: "Item 1", bubbleSize: "100" },
-      { metaLabel: "A", label: "Item 2", bubbleSize: "80" },
-      { metaLabel: "B", label: "Item 3", bubbleSize: "120" }
+      { group: "A", subgroup: "Item 1", value: 100 },
+      { group: "A", subgroup: "Item 2", value:  80 },
+      { group: "B", subgroup: "Item 3", value: 120 }
     ];
 
     const treemap = new VoronoiTreemap();
@@ -194,6 +202,8 @@ For local HTML files (using `file://` protocol), use the UMD standalone bundle:
       width: 900,
       height: 600,
       maptitle: 'My Treemap',
+      levels: ['group', 'subgroup'],
+      value: 'value',
       clickFunc: showVoronoiPopup
     });
 
@@ -209,47 +219,33 @@ d3-voronoi-treemap takes a `d3.hierarchy()` object — you have to build the nes
 
 ```
 root
- └─ metaLabel   (depth 1 — top-level region)
-     └─ label   (depth 2 — cluster)
-         └─ text  (depth 3 — leaf item)
+ └─ depth 1 — group
+     └─ depth 2 — subgroup
+         └─ depth 3 — item (leaf)
 ```
 
 ```javascript
 // VoronoiBubble input — flat array, no nesting required
-[
-  { metaLabel: "Region Name", label: "Cluster Name", text: "Item Name", bubbleSize: 100 },
-  { metaLabel: "Region Name", label: "Cluster Name", text: "Item 2",    bubbleSize:  60 },
-  { metaLabel: "Region B",    label: "Sub Group",    text: "Item 3",    bubbleSize:  80 }
-]
-```
+const data = [
+  { group: "Sales",     subgroup: "Domestic",      item: "Seoul",   value: 120 },
+  { group: "Sales",     subgroup: "Domestic",      item: "Busan",   value:  80 },
+  { group: "Marketing", subgroup: "International", item: "Tokyo",   value:  60 }
+];
 
-| Field | Required | Description |
-|---|---|---|
-| `metaLabel` | ✓ | Top-level region (depth 1) |
-| `label` | ✓ | Cluster within the region (depth 2) |
-| `text` | — | Leaf item label (depth 3; omit if only 2 levels needed) |
-| `bubbleSize` | ✓ | Cell size weight (number or numeric string) |
-
-If `text` is omitted, the hierarchy collapses to 2 levels (metaLabel → label).
-
-### Custom field names
-
-Use `levels` and `value` to map your own field names instead of `metaLabel`/`label`/`text`/`bubbleSize`:
-
-```javascript
 treemap.render(data, {
-  levels: ['department', 'team', 'person'],  // depth 0, 1, 2
-  value: 'count',                            // size field
+  levels: ['group', 'subgroup', 'item'],  // field names per depth
+  value: 'value'                           // size field
 });
-
-// data records can now use any field names:
-[
-  { department: '개발', team: 'FE', person: '김민준', count: 120 },
-  { department: '개발', team: 'BE', person: '이서연', count:  80 }
-]
 ```
 
-Defaults are `levels: ['metaLabel', 'label', 'text']` and `value: 'bubbleSize'`, so existing code keeps working without changes. Provide fewer entries in `levels` (e.g. `['team', 'person']`) for a 2-level hierarchy.
+`levels` and `value` map your field names — use whatever names fit your domain (`department/team/person`, `region/category/product`, etc.).
+
+| Option | Default | Description |
+|---|---|---|
+| `levels` | `['metaLabel', 'label', 'text']` | Field names per depth (1, 2, 3). Provide 2 entries for a 2-level hierarchy. |
+| `value` | `'bubbleSize'` | Field name for the cell size weight |
+
+If you omit `levels`/`value`, the data must use the default field names. The third depth is optional — provide 2 entries in `levels` (or omit the third field in your data) for a 2-level hierarchy.
 
 ## Configuration Options
 
@@ -260,8 +256,8 @@ Defaults are `levels: ['metaLabel', 'label', 'text']` and `value: 'bubbleSize'`,
   maptitle: 'Title',            // Main title
   mapcaption: 'Caption',        // Subtitle
   positions: 'auto',   // Cell position control: 'auto' or array of {key, depth, x, y}
-  showMetaLabel: true,          // Show metaLabel labels
-  showLabel: true,              // Show label labels
+  showMetaLabel: true,          // Show depth-1 (group) labels
+  showLabel: true,              // Show depth-2 (subgroup) labels
   showPercent: true,            // Show percentage labels
   pebble: true,                 // Enable pebble rendering
   pebbleRound: 5,               // Corner rounding
@@ -278,8 +274,8 @@ Defaults are `levels: ['metaLabel', 'label', 'text']` and `value: 'bubbleSize'`,
     "#45B7D1"
   ],
   keyColors: [            // Override colors for specific keys (optional)
-    { key: "긍정", color: "#4CAF50" },
-    { key: "부정", color: "#F44336" }
+    { key: "Sales",     color: "#4CAF50" },
+    { key: "Marketing", color: "#F44336" }
   ],
   cellImage: (d) => ({          // Per-cell background image (optional)
     url: d.imageUrl,            //   Image URL
@@ -343,9 +339,9 @@ treemap.render(data, {
 
 ```javascript
 const data = [
-  { metaLabel: "팀A", label: "김민준", bubbleSize: 120, imageUrl: "photos/kim.jpg" },
-  { metaLabel: "팀A", label: "이서연", bubbleSize: 80,  imageUrl: "photos/lee.jpg" },
-  { metaLabel: "팀B", label: "박도현", bubbleSize: 100, imageUrl: "photos/park.jpg" }
+  { group: "Team A", subgroup: "Kim",  value: 120, imageUrl: "photos/kim.jpg" },
+  { group: "Team A", subgroup: "Lee",  value:  80, imageUrl: "photos/lee.jpg" },
+  { group: "Team B", subgroup: "Park", value: 100, imageUrl: "photos/park.jpg" }
 ];
 
 treemap.render(data, {
@@ -455,8 +451,8 @@ treemap.render(data, {
 ```
 
 **Field reference:**
-- `key` — the `metaLabel`, `label`, or `text` value from your data
-- `depth` — hierarchy level: `1` = metaLabel, `2` = label, `3` = text
+- `key` — the field value at the targeted depth from your data (e.g. `'Sales'` for `levels[0]`)
+- `depth` — hierarchy level: `1` = top group, `2` = subgroup, `3` = item
 - `x`, `y` — position hint (any scale; normalized to 0.15–0.85 range automatically)
 
 ### Quadrant layout
@@ -479,7 +475,7 @@ const cx = 400, cy = 300, r = 200;
 const n = 5;
 
 treemap.render(data, {
-  metaLabelPositions: Array.from({ length: n }, (_, i) => ({
+  positions: Array.from({ length: n }, (_, i) => ({
     key: categories[i],
     depth: 1,
     x: cx + Math.cos((2 * Math.PI * i) / n) * r,
@@ -490,7 +486,7 @@ treemap.render(data, {
 
 ## Color Assignment
 
-Colors are automatically assigned based on total `bubbleSize`, from largest to smallest.
+Colors are automatically assigned based on total size value, from largest to smallest.
 
 ### Custom color palette
 
@@ -504,14 +500,14 @@ treemap.render(data, {
 });
 ```
 
-### metaLabel-specific colors
+### Per-key colors
 
 ```javascript
 treemap.render(data, {
   keyColors: [
-    { key: "긍정", color: "#4CAF50" },
-    { key: "부정", color: "#F44336" },
-    { key: "중립", color: "#FFC107" }
+    { key: "Sales",     color: "#4CAF50" },
+    { key: "Marketing", color: "#F44336" },
+    { key: "Support",   color: "#FFC107" }
   ]
 });
 ```
@@ -522,7 +518,7 @@ treemap.render(data, {
 treemap.render(data, {
   getCellColors: (cellColors) => {
     console.log(cellColors);
-    // [{metaLabel: "긍정", metaColor: "#FF6B6B", label: "매우 좋음", color: "#ff8989"}, ...]
+    // [{metaLabel: "Sales", metaColor: "#FF6B6B", label: "Domestic", color: "#ff8989"}, ...]
   }
 });
 ```

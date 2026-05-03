@@ -2020,12 +2020,12 @@ body {
         showMetaLabel: false,
         showPercent: false,
         underLabel: false,
-        metaLabelPositions: null,
+        positions: null,
         forceNodeFunc: null,
         debug: false,
         pebbleRound: 25,
         pebbleWidth: 3,
-        metaLabelColors: [],
+        keyColors: [],
         // Custom label renderer options
         metaLabelRenderer: null, // (datum, defaultHtml, context) => HTML string
         labelRenderer: null, // (datum, defaultHtml, context) => HTML string
@@ -2065,10 +2065,14 @@ body {
       const normalizedOptions = { ...options };
       if ('showRegion' in normalizedOptions && !('showMetaLabel' in normalizedOptions))
         normalizedOptions.showMetaLabel = normalizedOptions.showRegion;
-      if ('regionPositions' in normalizedOptions && !('metaLabelPositions' in normalizedOptions))
-        normalizedOptions.metaLabelPositions = normalizedOptions.regionPositions;
-      if ('regionColors' in normalizedOptions && !('metaLabelColors' in normalizedOptions))
-        normalizedOptions.metaLabelColors = normalizedOptions.regionColors;
+      if (!('positions' in normalizedOptions)) {
+        if ('metaLabelPositions' in normalizedOptions) normalizedOptions.positions = normalizedOptions.metaLabelPositions;
+        else if ('regionPositions' in normalizedOptions) normalizedOptions.positions = normalizedOptions.regionPositions;
+      }
+      if (!('keyColors' in normalizedOptions)) {
+        if ('metaLabelColors' in normalizedOptions) normalizedOptions.keyColors = normalizedOptions.metaLabelColors;
+        else if ('regionColors' in normalizedOptions) normalizedOptions.keyColors = normalizedOptions.regionColors;
+      }
       if ('regionLabelRenderer' in normalizedOptions && !('metaLabelRenderer' in normalizedOptions))
         normalizedOptions.metaLabelRenderer = normalizedOptions.regionLabelRenderer;
       if ('bigClusterLabelRenderer' in normalizedOptions && !('labelRenderer' in normalizedOptions))
@@ -2226,8 +2230,8 @@ body {
         .sort((a, b) => b[1] - a[1]) // b[1] - a[1]: descending order
         .map((d) => d[0]); // Extract metaLabel names
 
-      const { metaLabelColors, colors: paletteColors } = this.params;
-      const customColorMap = new Map(metaLabelColors.map((d) => [d.key, d.color]));
+      const { keyColors, colors: paletteColors } = this.params;
+      const customColorMap = new Map(keyColors.map((d) => [d.key, d.color]));
 
       let colorMapping = {};
 
@@ -2264,12 +2268,12 @@ body {
       });
 
       const hasCustomPositions =
-        Array.isArray(this.params.metaLabelPositions) &&
-        this.params.metaLabelPositions.length > 0;
+        Array.isArray(this.params.positions) &&
+        this.params.positions.length > 0;
 
       if (hasCustomPositions || this.params.adaptiveIterations) {
         const mergedPositions = hasCustomPositions
-          ? this._normalizePositions(this.params.metaLabelPositions)
+          ? this._normalizePositions(this.params.positions)
           : [];
         const seed = d3.seedrandom(this.params.seedRandom);
         VoronoiTreemapHelpers.createCustomVoronoiAlgorithm(

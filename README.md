@@ -32,7 +32,7 @@ Voronoi layouts are non-deterministic by default — you can't control which reg
 
 ```javascript
 treemap.render(data, {
-  metaLabelPositions: [
+  positions: [
     { key: '긍정', depth: 1, x: 1, y: 0 },      // top-right
     { key: '중립', depth: 1, x: 0.5, y: 0.5 },  // center
     { key: '부정', depth: 1, x: 0, y: 1 }        // bottom-left
@@ -152,7 +152,7 @@ chart = {
     width: 900,
     height: 600,
     maptitle: 'My Treemap',
-    metaLabelPositions: 'auto',
+    positions: 'auto',
     showMetaLabel: true,
     showLabel: true,
     showPercent: true,
@@ -259,7 +259,7 @@ Defaults are `levels: ['metaLabel', 'label', 'text']` and `value: 'bubbleSize'`,
   height: 600,                  // Canvas height
   maptitle: 'Title',            // Main title
   mapcaption: 'Caption',        // Subtitle
-  metaLabelPositions: 'auto',   // Cell position control: 'auto' or array of {key, depth, x, y}
+  positions: 'auto',   // Cell position control: 'auto' or array of {key, depth, x, y}
   showMetaLabel: true,          // Show metaLabel labels
   showLabel: true,              // Show label labels
   showPercent: true,            // Show percentage labels
@@ -277,7 +277,7 @@ Defaults are `levels: ['metaLabel', 'label', 'text']` and `value: 'bubbleSize'`,
     "#4ECDC4",
     "#45B7D1"
   ],
-  metaLabelColors: [            // Override colors for specific metaLabels (optional)
+  keyColors: [            // Override colors for specific keys (optional)
     { key: "긍정", color: "#4CAF50" },
     { key: "부정", color: "#F44336" }
   ],
@@ -440,13 +440,13 @@ treemap.render(data, {
 
 ## Cell Position Control
 
-Use `metaLabelPositions` to control where regions appear in the chart.
+Use `positions` to control where cells appear in the chart. Each entry can target any depth via the `depth` field.
 
 ### Manual positioning
 
 ```javascript
 treemap.render(data, {
-  metaLabelPositions: [
+  positions: [
     { key: '긍정', depth: 1, x: 700, y: 200 },
     { key: '중립', depth: 1, x: 400, y: 300 },
     { key: '부정', depth: 1, x: 100, y: 400 }
@@ -463,7 +463,7 @@ treemap.render(data, {
 
 ```javascript
 treemap.render(data, {
-  metaLabelPositions: [
+  positions: [
     { key: 'A', depth: 1, x: 0, y: 0 },
     { key: 'B', depth: 1, x: 1, y: 0 },
     { key: 'C', depth: 1, x: 0, y: 1 },
@@ -508,7 +508,7 @@ treemap.render(data, {
 
 ```javascript
 treemap.render(data, {
-  metaLabelColors: [
+  keyColors: [
     { key: "긍정", color: "#4CAF50" },
     { key: "부정", color: "#F44336" },
     { key: "중립", color: "#FFC107" }

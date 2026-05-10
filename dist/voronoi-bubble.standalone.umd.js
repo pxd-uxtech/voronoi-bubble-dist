@@ -27677,18 +27677,22 @@ body {
     }
 
     _setupGroups() {
+      // outer wrapper: applies static margin offset (never touched by zoom)
       this.chartGroup = this.svg
         .append("g")
         .attr("transform", `translate(${this.margin.left},${this.margin.top})`);
 
-      this.voronoiGroup = this.chartGroup.append("g").attr("class", "cell");
-      this.labelsGroup = this.chartGroup.append("g").attr("class", "labels");
-      this.popLabelsGroup = this.chartGroup.append("g").attr("class", "pop");
-      this.bigLabelsGroup = this.chartGroup.append("g").attr("class", "label1");
-      this.percentLabelsGroup = this.chartGroup
+      // inner wrapper: applies dynamic zoom transform
+      this.zoomGroup = this.chartGroup.append("g").attr("class", "zoom");
+
+      this.voronoiGroup = this.zoomGroup.append("g").attr("class", "cell");
+      this.labelsGroup = this.zoomGroup.append("g").attr("class", "labels");
+      this.popLabelsGroup = this.zoomGroup.append("g").attr("class", "pop");
+      this.bigLabelsGroup = this.zoomGroup.append("g").attr("class", "label1");
+      this.percentLabelsGroup = this.zoomGroup
         .append("g")
         .attr("class", "percent");
-      this.regionLabelsGroup = this.chartGroup
+      this.regionLabelsGroup = this.zoomGroup
         .append("g")
         .attr("class", "region");
     }
@@ -28444,22 +28448,30 @@ body {
 
     _setupZoom() {
       const svg = this.svg;
-      const chartGroup = this.chartGroup;
+      const zoomGroup = this.zoomGroup;
       const baseFontPx = 16;
       let lastK = 1;
 
       const zoom = d3.zoom()
         .scaleExtent([1, 12])
-        .translateExtent([[0, 0], [this.width, this.height]])
+        .constrain((transform) => {
+          const { k } = transform;
+          if (k <= 1) return d3.zoomIdentity;
+          // Allow panning so chart edges can reach viewport edges
+          // (margin offsets are absorbed by chartGroup's static transform)
+          const xMin = Math.min(0, this.params.width - this.margin.left - k * this.width);
+          const yMin = Math.min(0, this.params.height - this.margin.top - k * this.height);
+          const x = Math.max(xMin, Math.min(0, transform.x));
+          const y = Math.max(yMin, Math.min(0, transform.y));
+          return new transform.constructor(k, x, y);
+        })
         .on('zoom', (event) => {
           const { x, y, k } = event.transform;
-          chartGroup.attr('transform',
-            `translate(${this.margin.left + x},${this.margin.top + y}) scale(${k})`
-          );
+          zoomGroup.attr('transform', `translate(${x},${y}) scale(${k})`);
 
           // phase 1 (k≤growMax): text grows with zoom
           // phase 2 (k>growMax): text held at growMax screen size, char count grows instead
-          const growMax = 1.5;
+          const growMax = 2;
           const textScale = k <= growMax ? 1 : growMax / k;
 
           // labelMode: fade in labels/borders as zoom increases

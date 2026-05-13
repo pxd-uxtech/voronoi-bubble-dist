@@ -486,6 +486,28 @@ treemap.render(data, {
 });
 ```
 
+### Recommended: semantic layout via text embeddings + UMAP
+
+For label-heavy datasets (categories, comments, topics), the most informative layout is to place semantically similar cells near each other. The recommended workflow:
+
+1. Embed each cell's label/text with a sentence-embedding model (OpenAI `text-embedding-3-small`, Cohere `embed-multilingual`, or a local `sentence-transformers` model).
+2. Reduce the embedding vectors to 2D with [UMAP](https://github.com/lmcinnes/umap) (or t-SNE).
+3. Feed the 2D coordinates straight into `positions` — coordinates are auto-normalized to the cell area.
+
+```javascript
+// embeddings: pre-computed { key, x, y } from UMAP
+treemap.render(data, {
+  positions: embeddings.map(e => ({
+    key: e.key,
+    depth: 1,           // or 2 for subgroup-level clustering
+    x: e.x,
+    y: e.y
+  }))
+});
+```
+
+The result: visually adjacent cells are semantically related, turning the treemap into a "map" of meaning rather than an arbitrary partition.
+
 ## Color Assignment
 
 Colors are automatically assigned based on total size value, from largest to smallest.

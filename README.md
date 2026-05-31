@@ -48,7 +48,7 @@ treemap.render(data, {
 
 ### 3. Label collision avoidance
 
-When a subgroup label overlaps with its parent group label, the adjuster automatically moves it to whichever side has more free space — staying within the cell polygon boundary. Works with both SVG text and custom HTML renderers (`metaLabelRenderer`).
+When a subgroup label overlaps with its parent group label, the adjuster automatically moves it to whichever side has more free space — staying within the cell polygon boundary. Works with both SVG text and custom HTML renderers (`renderGroupLabel`).
 
 ### 4. Pebble outline
 
@@ -66,7 +66,7 @@ Beyond these four, VoronoiBubble also provides:
 |---|---|
 | SVG rendering | Full SVG output with hierarchical cell layers |
 | Hierarchical labels | 3-level label system (group → subgroup → item) auto-sized by cell area |
-| Custom HTML labels | `metaLabelRenderer` / `labelRenderer` callbacks for full HTML/CSS control |
+| Custom HTML labels | `renderGroupLabel` / `renderSubgroupLabel` callbacks for full HTML/CSS control |
 | Color system | Palette assigned by cell size; per-level lightness variation; `keyColors` overrides |
 | Click / hover | Cell selection, highlight, `clickFunc` callback |
 | Popup helpers | `showVoronoiPopup` (Observable) and `createDOMPopup` (standard DOM) |
@@ -369,12 +369,17 @@ treemap.render(data, {
 
 ## Custom Label Renderers
 
-Use `renderLabel` to fully customize label appearance by returning an HTML string. The same callback handles both depths — branch on `ctx.depth`.
+Fully customize label appearance by returning an HTML string. There is one renderer per depth:
 
-### `renderLabel`
+| Option | Depth | Target |
+|--------|-------|--------|
+| `renderGroupLabel`    | 1 | group labels |
+| `renderSubgroupLabel` | 2 | subgroup labels |
+
+Each callback receives `(d, defaultHtml, ctx)`:
 
 ```javascript
-renderLabel: (d, defaultHtml, ctx) => {
+renderGroupLabel: (d, defaultHtml, ctx) => {
   // d           - data node
   // defaultHtml - default HTML string
   // ctx         - context object:
@@ -385,9 +390,7 @@ renderLabel: (d, defaultHtml, ctx) => {
   //   ctx.darkerColor - a darker shade of the cell color
   //   ctx.percentText - percentage string (e.g. "34.5%")
 
-  if (ctx.depth === 1) return `<div>...</div>`;  // group label
-  if (ctx.depth === 2) return `<div>...</div>`;  // subgroup label
-  // return "" to hide a label
+  return `<div>...</div>`;  // return "" to hide this label
 }
 ```
 
@@ -397,9 +400,7 @@ renderLabel: (d, defaultHtml, ctx) => {
 treemap.render(data, {
   showMetaLabel: true,
   showPercent: true,
-  renderLabel: (d, defaultHtml, ctx) => {
-    if (ctx.depth !== 1) return defaultHtml;
-
+  renderGroupLabel: (d, defaultHtml, ctx) => {
     const keyStr = String(ctx.key ?? "");
     if (/^\d+$/.test(keyStr) || /^cluster\s*\d+$/i.test(keyStr)) return "";
 
@@ -425,14 +426,20 @@ treemap.render(data, {
 });
 ```
 
-### Per-depth shortcuts (legacy — still supported)
+### Legacy aliases (still supported)
 
-If you only want to customize one depth, the per-depth options stay available and take precedence over `renderLabel`:
+Earlier option names map automatically to the canonical renderers (an explicit `renderGroupLabel`/`renderSubgroupLabel` always wins):
 
 ```javascript
 treemap.render(data, {
-  metaLabelRenderer: (d, defaultHtml, ctx) => `<div>...</div>`,  // depth 1 only
-  labelRenderer:     (d, defaultHtml, ctx) => `<div>...</div>`   // depth 2 only
+  metaLabelRenderer:     (d, defaultHtml, ctx) => `...`,  // → renderGroupLabel    (depth 1)
+  regionLabelRenderer:   (d, defaultHtml, ctx) => `...`,  // → renderGroupLabel    (depth 1)
+  labelRenderer:         (d, defaultHtml, ctx) => `...`,  // → renderSubgroupLabel (depth 2)
+  bigClusterLabelRenderer: (d, defaultHtml, ctx) => `...`, // → renderSubgroupLabel (depth 2)
+
+  // Unified single-callback form — branch on ctx.depth, fans out to both depths
+  renderLabel: (d, defaultHtml, ctx) =>
+    ctx.depth === 1 ? `<div>group</div>` : `<div>subgroup</div>`
 });
 ```
 
@@ -695,6 +702,10 @@ The ESM/UMD bundles require peer dependencies:
 The standalone bundle includes all dependencies pre-bundled.
 
 ## Version History
+
+### 1.4.0
+- Split label renderers into `renderGroupLabel` (depth 1) / `renderSubgroupLabel` (depth 2) as the canonical API; `renderLabel` (unified) and `metaLabelRenderer`/`labelRenderer`/`regionLabelRenderer`/`bigClusterLabelRenderer` kept as legacy aliases
+- Chart background rect is now transparent (was `#fff`)
 
 ### 1.3.0
 - Rebranded as VoronoiBubble under UXtechLab

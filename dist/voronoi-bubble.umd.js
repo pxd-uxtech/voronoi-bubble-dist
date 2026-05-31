@@ -33,6 +33,8 @@
   var d3VoronoiTreemap__namespace = /*#__PURE__*/_interopNamespaceDefault(d3VoronoiTreemap);
   var seedrandomModule__namespace = /*#__PURE__*/_interopNamespaceDefault(seedrandomModule);
 
+  // Copyright (c) 2025 UXtechLab. All Rights Reserved.
+  // Originally created by @taekie. Licensed under BUSL-1.1 by UXtechLab. See LICENSE for details.
   /**
    * D3 Bundle Utility
    *
@@ -455,7 +457,7 @@
       }
 
       /**
-       * Get bounding box from a foreignObject element (metaLabelRenderer case)
+       * Get bounding box from a foreignObject element (renderGroupLabel case)
        * foreignObject uses x/y/width/height attributes instead of transform+getBBox
        * @param {Object} element - D3 selection of foreignObject element
        * @returns {Object|null} Bounding box info or null if element invalid
@@ -471,7 +473,7 @@
         if (foW === 0 || foH === 0) return null;
 
         // Use actual rendered content size — querySelector('div') is the flex wrapper (100%x100%),
-        // so use its firstElementChild which is the actual rendered content from metaLabelRenderer
+        // so use its firstElementChild which is the actual rendered content from renderGroupLabel
         let width = foW;
         let height = foH;
         const flexWrapper = node.querySelector("div");
@@ -632,7 +634,7 @@
           .filter((d) => d?.data?.key === parentKey)
           .nodes()[0];
 
-        // Custom renderer (metaLabelRenderer): foreignObject.region-label-foreign
+        // Custom renderer (renderGroupLabel): foreignObject.region-label-foreign
         if (!parentRegionElement) {
           parentRegionElement = d3
             .select(treemap)
@@ -2026,11 +2028,10 @@ body {
         pebbleRound: 25,
         pebbleWidth: 3,
         keyColors: [],
-        // Custom HTML label renderer — single callback dispatches by ctx.depth
+        // Custom HTML label renderers — one per depth.
         // (datum, defaultHtml, ctx) => HTML string. ctx.depth is 1 (group) or 2 (subgroup).
-        renderLabel: null,
-        metaLabelRenderer: null, // (datum, defaultHtml, context) => HTML string (depth 1 only)
-        labelRenderer: null,     // (datum, defaultHtml, context) => HTML string (depth 2 only)
+        renderGroupLabel: null,    // depth 1 (group)
+        renderSubgroupLabel: null, // depth 2 (subgroup)
         adaptiveIterations: true,
         cellImage: null, // (datum) => { url, mode: 'fill'|'fit', opacity: 0~1, colorMode: 'original'|'tint' } | null
         labelMode: 'show', // 'show' | 'faded' | 'hidden'
@@ -2075,16 +2076,21 @@ body {
         if ('metaLabelColors' in normalizedOptions) normalizedOptions.keyColors = normalizedOptions.metaLabelColors;
         else if ('regionColors' in normalizedOptions) normalizedOptions.keyColors = normalizedOptions.regionColors;
       }
-      // Renderer aliases: regionLabelRenderer/bigClusterLabelRenderer → metaLabelRenderer/labelRenderer
-      if ('regionLabelRenderer' in normalizedOptions && !('metaLabelRenderer' in normalizedOptions))
-        normalizedOptions.metaLabelRenderer = normalizedOptions.regionLabelRenderer;
-      if ('bigClusterLabelRenderer' in normalizedOptions && !('labelRenderer' in normalizedOptions))
-        normalizedOptions.labelRenderer = normalizedOptions.bigClusterLabelRenderer;
-      // Unified renderLabel → fans out to both depth renderers (legacy options take precedence if set)
+      // Canonical renderers: renderGroupLabel (depth 1) / renderSubgroupLabel (depth 2)
+      // Legacy aliases → canonical (explicit canonical option always wins)
+      if (!('renderGroupLabel' in normalizedOptions)) {
+        if ('metaLabelRenderer' in normalizedOptions) normalizedOptions.renderGroupLabel = normalizedOptions.metaLabelRenderer;
+        else if ('regionLabelRenderer' in normalizedOptions) normalizedOptions.renderGroupLabel = normalizedOptions.regionLabelRenderer;
+      }
+      if (!('renderSubgroupLabel' in normalizedOptions)) {
+        if ('labelRenderer' in normalizedOptions) normalizedOptions.renderSubgroupLabel = normalizedOptions.labelRenderer;
+        else if ('bigClusterLabelRenderer' in normalizedOptions) normalizedOptions.renderSubgroupLabel = normalizedOptions.bigClusterLabelRenderer;
+      }
+      // Legacy unified renderLabel → fans out to both depth renderers (canonical/legacy options take precedence if set)
       if (normalizedOptions.renderLabel) {
         const r = normalizedOptions.renderLabel;
-        if (!normalizedOptions.metaLabelRenderer) normalizedOptions.metaLabelRenderer = (d, html, ctx) => r(d, html, ctx);
-        if (!normalizedOptions.labelRenderer) normalizedOptions.labelRenderer = (d, html, ctx) => r(d, html, ctx);
+        if (!normalizedOptions.renderGroupLabel) normalizedOptions.renderGroupLabel = (d, html, ctx) => r(d, html, ctx);
+        if (!normalizedOptions.renderSubgroupLabel) normalizedOptions.renderSubgroupLabel = (d, html, ctx) => r(d, html, ctx);
       }
 
       this.params = { ...VoronoiTreemap.DEFAULT_OPTIONS, ...normalizedOptions };
@@ -2155,7 +2161,7 @@ body {
         .append("rect")
         .attr("width", "100%")
         .attr("height", "100%")
-        .style("fill", "#fff");
+        .style("fill", "transparent");
 
       const innerWidth = this.params.width - this.margin.left - this.margin.right;
       const innerHeight = this.params.height - this.margin.top - this.margin.bottom;
@@ -2610,12 +2616,12 @@ body {
     }
 
     _drawRegionLabels() {
-      const { showMetaLabel, metaLabelRenderer } = this.params;
+      const { showMetaLabel, renderGroupLabel } = this.params;
 
       const regionNodes = this.allNodes.filter((d) => d.depth === 1);
 
       // If custom renderer exists, use foreignObject
-      if (metaLabelRenderer) {
+      if (renderGroupLabel) {
         this.regionLabelsGroup
           .selectAll("foreignObject")
           .data(regionNodes)
@@ -2658,7 +2664,7 @@ body {
           .html((d) => {
             const defaultHtml = VoronoiTreemapHelpers.multiline(d.data.key);
             const context = VoronoiTreemapHelpers.createLabelContext(this, d, 1);
-            return metaLabelRenderer(d, defaultHtml, context);
+            return renderGroupLabel(d, defaultHtml, context);
           });
       } else {
         // Default text rendering
@@ -2698,12 +2704,12 @@ body {
     }
 
     _drawBigClusterLabels() {
-      const { ratioLimit, labelRenderer } = this.params;
+      const { ratioLimit, renderSubgroupLabel } = this.params;
 
       const bigClusterNodes = this.allNodes.filter((d) => d.depth === 2);
 
       // If custom renderer exists, use foreignObject
-      if (labelRenderer) {
+      if (renderSubgroupLabel) {
         this.bigLabelsGroup
           .selectAll("foreignObject")
           .data(bigClusterNodes)
@@ -2751,7 +2757,7 @@ body {
           .html((d) => {
             const defaultHtml = VoronoiTreemapHelpers.multiline(d.data.key);
             const context = VoronoiTreemapHelpers.createLabelContext(this, d, 2);
-            return labelRenderer(d, defaultHtml, context);
+            return renderSubgroupLabel(d, defaultHtml, context);
           });
       } else {
         // Default text rendering
@@ -3046,6 +3052,8 @@ body {
     }
   }
 
+  // Copyright (c) 2025 UXtechLab. All Rights Reserved.
+  // Originally created by @taekie. Licensed under BUSL-1.1 by UXtechLab. See LICENSE for details.
   /**
    * Voronoi Popup Utility
    *

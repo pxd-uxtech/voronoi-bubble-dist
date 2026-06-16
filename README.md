@@ -410,7 +410,29 @@ renderGroupLabel: (d, defaultHtml, ctx) => {
 }
 ```
 
-### Example: Outlined percent display for groups
+### Tip: show the group percent neatly under the label
+
+`showPercent` draws the percentage on its own and it can land in an awkward spot.
+For a clean result, render it yourself inside `renderGroupLabel` — put `ctx.key`
+on the first line and `ctx.percentText` right under it. `ctx` gives you everything
+you need: `ctx.key` (group name), `ctx.percentText` (auto-computed percent string),
+and `ctx.fontSize` / `ctx.darkerColor` for sizing and the outline color.
+
+```javascript
+treemap.render(data, {
+  showMetaLabel: true,
+  renderGroupLabel: (d, defaultHtml, ctx) => `
+    <div style="text-align:center; color:#fff;">
+      <div style="font-weight:700; font-size:${ctx.fontSize * 0.95}em;
+                  -webkit-text-stroke:3px ${ctx.darkerColor}; paint-order:stroke fill;">
+        ${ctx.key}<br>
+        <small style="font-size:76%">${ctx.percentText}</small>   <!-- percent under the label -->
+      </div>
+    </div>`
+});
+```
+
+### Example: Outlined percent display for groups (with cluster-name filtering)
 
 ```javascript
 treemap.render(data, {

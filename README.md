@@ -1,6 +1,6 @@
 # VoronoiBubble
 
-Voronoi treemap visualization engine powering the ○○Bubble series.
+Voronoi treemap visualization engine powering the AffinityBubble.
 
 Originally created by [@taekie](https://github.com/taekie).  
 Copyright (c) 2025 UXtechLab. Licensed under [BUSL-1.1](https://mariadb.com/bsl11/).

@@ -709,7 +709,7 @@ function nestingForVoronoi(
   // 3. Helper to convert to dictionary format
   const makeDictionary = (bc, bcData, metaLabel) => {
     return bcData.map((k) => {
-      const item = {
+      const grouping = {
         [key1]: bc,
         [key2]: k[0],
         size: k[1] ? k[1] : 1
@@ -718,9 +718,13 @@ function nestingForVoronoi(
       const originalData = data.filter(
         (c) =>
           c.metaLabel === metaLabel &&
-          c[key1] === item[key1] &&
-          c[key2] === item[key2]
+          c[key1] === grouping[key1] &&
+          c[key2] === grouping[key2]
       );
+
+      // Keep all original fields on the leaf item (grouping keys + size win),
+      // so popups can reference any data field via {field} with no extra wiring.
+      const item = { ...(originalData[0] || {}), ...grouping };
 
       return {
         key: k[0],
@@ -946,6 +950,74 @@ const VoronoiTreemapHelpers = {
     if (hierarchy.children) {
       hierarchy.children.forEach((child) => this.colorHierarchy(self, child));
     }
+  },
+
+  // === Sentiment / diverging color scale ===
+
+  // 5-stop pastel red→yellow→green palette for rating/sentiment scales.
+  sentimentStops: [
+    [246, 159, 143], // low  — red
+    [250, 196, 156],
+    [255, 233, 169], // mid  — yellow
+    [196, 219, 154],
+    [136, 205, 139], // high — green
+  ],
+
+  /**
+   * Map a numeric score to the 5-stop diverging sentiment palette.
+   * @param {number} score - value to map
+   * @param {number} [lo=1] - low end of the domain
+   * @param {number} [hi=5] - high end of the domain
+   * @returns {string} hex color
+   */
+  sentimentColor: function (score, lo = 1, hi = 5) {
+    const stops = this.sentimentStops;
+    let s = Number(score);
+    if (Number.isNaN(s) || s < lo) s = lo;
+    if (s > hi) s = hi;
+    const t = hi === lo ? 0 : (s - lo) / (hi - lo); // 0..1
+    const seg = t * (stops.length - 1);
+    const i = Math.min(stops.length - 2, Math.floor(seg));
+    const f = seg - i;
+    const c = stops[i].map((v, k) => Math.round(v + (stops[i + 1][k] - v) * f));
+    return `#${c.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+  },
+
+  /**
+   * Build colorFunc + keyColors from a numeric sentiment field on the data.
+   * Leaf cells are colored by their own rows' average score; depth-1 regions by
+   * their group average. Used by the `sentiment` render option.
+   * @param {Array} data - normalized data (rows carry metaLabel + the score field)
+   * @param {string|Object} opt - field name, or { field, domain: [lo, hi] }
+   * @returns {{ colorFunc: Function, keyColors: Array }}
+   */
+  buildSentimentColoring: function (data, opt) {
+    const field = typeof opt === "string" ? opt : opt.field;
+    const domain = (typeof opt === "object" && opt.domain) || [1, 5];
+    const [lo, hi] = domain;
+    const self = this;
+    const avg = (a) => a.reduce((s, v) => s + v, 0) / a.length;
+    const nums = (arr) =>
+      (arr || []).map((r) => Number(r[field])).filter((v) => !Number.isNaN(v));
+
+    // depth-1 (metaLabel) group averages → keyColors (region tint)
+    const groups = {};
+    data.forEach((d) => {
+      const v = Number(d[field]);
+      if (!Number.isNaN(v)) (groups[d.metaLabel] = groups[d.metaLabel] || []).push(v);
+    });
+    const keyColors = Object.entries(groups).map(([key, vs]) => ({
+      key,
+      color: self.sentimentColor(avg(vs), lo, hi),
+    }));
+
+    // leaf colored by its own rows' average score
+    const colorFunc = (rows, _nodeData, def) => {
+      const vs = nums(rows);
+      return vs.length ? self.sentimentColor(avg(vs), lo, hi) : def;
+    };
+
+    return { colorFunc, keyColors };
   },
 
   // === Text & Label Functions ===
@@ -1739,6 +1811,26 @@ function getPopupStyles() {
   border-color: #fff transparent transparent transparent;
 }
 
+/* Primary popup (showVoronoiPopup from utils): the JS already positions the
+   .voronoi-popup-container at the final top-left, so the inner content must NOT
+   re-apply the legacy centering transform — otherwise it double-offsets up-left.
+   Scoped to .voronoi-popup-container so the legacy popup keeps its transform. */
+.voronoi-popup-container .voronoi-popup-content {
+  position: relative;
+  transform: none;
+}
+/* When placed below the cell, flip the arrow to point up from the top edge. */
+.voronoi-popup-container.popup-below .voronoi-popup-content::before {
+  top: auto;
+  bottom: 100%;
+  border-color: transparent transparent #555 transparent;
+}
+.voronoi-popup-container.popup-below .voronoi-popup-content::after {
+  top: auto;
+  bottom: 100%;
+  border-color: transparent transparent #fff transparent;
+}
+
 .voronoi-popup-message {
   max-width: 350px;
   min-width: 200px;
@@ -1918,6 +2010,26 @@ body {
     border-color: #fff transparent transparent transparent;
 }
 
+/* Primary popup (showVoronoiPopup from utils): the JS already positions the
+   .voronoi-popup-container at the final top-left, so the inner content must NOT
+   re-apply the legacy centering transform — otherwise it double-offsets up-left.
+   Scoped to .voronoi-popup-container so the legacy popup keeps its transform. */
+.voronoi-popup-container .voronoi-popup-content {
+    position: relative;
+    transform: none;
+}
+/* When placed below the cell, flip the arrow to point up from the top edge. */
+.voronoi-popup-container.popup-below .voronoi-popup-content::before {
+    top: auto;
+    bottom: 100%;
+    border-color: transparent transparent #555 transparent;
+}
+.voronoi-popup-container.popup-below .voronoi-popup-content::after {
+    top: auto;
+    bottom: 100%;
+    border-color: transparent transparent #fff transparent;
+}
+
 .voronoi-popup-message {
     max-width: 350px;
     min-width: 200px;
@@ -1984,12 +2096,13 @@ class VoronoiTreemap {
   // === Default Options ===
   static get DEFAULT_OPTIONS() {
     return {
-      width: 500,
-      height: 300,
+      width: 1200,
+      height: 900,
       maptitle: "",
       caption: "",
       clickFunc: () => {},
       colorFunc: null,
+      sentiment: null, // 'fieldName' | { field, domain:[lo,hi] } — built-in diverging sentiment colormap
       getCellColors: null, // (cellColors) => void - Callback to receive actual cell colors
       sizeLimit: 1000,
       ratioLimit: 0,
@@ -2003,7 +2116,7 @@ class VoronoiTreemap {
       forceNodeFunc: null,
       debug: false,
       pebbleRound: 25,
-      pebbleWidth: 3,
+      pebbleWidth: 5,
       keyColors: [],
       // Custom HTML label renderers — one per depth.
       // (datum, defaultHtml, ctx) => HTML string. ctx.depth is 1 (group) or 2 (subgroup).
@@ -2095,6 +2208,32 @@ class VoronoiTreemap {
       return normalized;
     });
 
+    // Built-in sentiment colormap: `sentiment: 'fieldName'` or { field, domain: [lo, hi] }.
+    // Auto-wires colorFunc (leaf cells) + keyColors (regions) from the diverging
+    // pastel palette so a rating/sentiment field looks good with no extra code.
+    // Explicit colorFunc / keyColors always take precedence.
+    if (this.params.sentiment) {
+      const sc = VoronoiTreemapHelpers.buildSentimentColoring(
+        this.data,
+        this.params.sentiment
+      );
+      if (!this.params.colorFunc) this.params.colorFunc = sc.colorFunc;
+      if (!this.params.keyColors || this.params.keyColors.length === 0)
+        this.params.keyColors = sc.keyColors;
+    }
+
+    // When colorFunc drives leaf colors but the user gave no palette/keyColors,
+    // default the depth-1 (metaLabel) palette to a single neutral color so region
+    // outlines and labels don't show clashing rainbow colors. Override with
+    // `colors` / `keyColors` to restore per-region coloring.
+    if (
+      this.params.colorFunc &&
+      !("colors" in normalizedOptions) &&
+      (!this.params.keyColors || this.params.keyColors.length === 0)
+    ) {
+      this.params.colors = ["#444"];
+    }
+
     this._setupSVG();
     this._prepareData();
     this._setupGroups();
@@ -2124,12 +2263,17 @@ class VoronoiTreemap {
   // === 1. Initial Setup Methods ===
 
   _setupSVG() {
-    // SVG size = exactly params.width × params.height
-    // Voronoi drawing area = total minus margins
+    // Drawing coordinate space = params.width × params.height (the viewBox).
+    // Display size is left to CSS: fills the container width, scales down on
+    // mobile, and never grows past the native drawing size on large screens.
+    // No JS scale math — the browser scales fonts/strokes/cells via the viewBox.
     this.svg = d3
       .create("svg")
-      .attr("width", this.params.width)
-      .attr("height", this.params.height);
+      .attr("viewBox", `0 0 ${this.params.width} ${this.params.height}`)
+      .attr("preserveAspectRatio", "xMidYMid meet")
+      .style("width", "100%")
+      .style("height", "auto")
+      .style("max-width", `${this.params.width}px`);
 
     // Inject bubble styles (includes :hover rules)
     this.svg.append("style").text(getBubbleStyles());
@@ -3093,17 +3237,23 @@ function showVoronoiPopup(clicked, options = {}) {
   const x = screenPoint.x + window.scrollX;
   const y = screenPoint.y + window.scrollY;
 
-  // Determine popup direction based on available space
+  // Space above the cell (popup placement is decided after measuring its height)
   const spaceAbove = screenPoint.y;
-  const spaceBelow = window.innerHeight - screenPoint.y;
-  const placeBelow = spaceAbove < 150 || spaceBelow > spaceAbove;
 
   // === Template substitution ===
+  // Gather fields from every place the row may live: clicked's own top-level
+  // (the library spreads the leaf's d.data here), clicked.data, and the d3 node's
+  // depth-3 .data/.raw. Later spreads win, so the original row takes precedence.
+  const node = clicked.d;
   const data = {
+    ...clicked,
     key: clicked.key,
     ...(clicked.data || {}),
     ...(clicked.data?.data || {}),
-    ...(clicked.d?.data?.data || {})
+    ...(node?.data?.data || {}),
+    ...(node?.data?.raw?.[0] || {}),
+    ...(node?.parent?.data?.data || {}),
+    ...(node?.parent?.data?.raw?.[0] || {})
   };
 
   let content = format
@@ -3125,7 +3275,6 @@ function showVoronoiPopup(clicked, options = {}) {
     top: "0px",
     zIndex: "1000"
   });
-  popup.classList.add(placeBelow ? "popup-below" : "popup-above");
 
   popup.innerHTML = `<div class="voronoi-popup-content">
     <div class="voronoi-popup-message">${content}</div>
@@ -3137,6 +3286,12 @@ function showVoronoiPopup(clicked, options = {}) {
   // Measure size using offsetWidth/offsetHeight (synchronous)
   const popupWidth = popup.offsetWidth;
   const popupHeight = popup.offsetHeight;
+
+  // Prefer placing the popup ABOVE the cell (conventional tooltip position).
+  // Only drop below when it wouldn't fit above (would be clipped at the top).
+  const gap = 10;
+  const placeBelow = spaceAbove < popupHeight + gap;
+  popup.classList.add(placeBelow ? "popup-below" : "popup-above");
 
   // Calculate horizontal position with boundary check
   let finalX = x - popupWidth / 2;

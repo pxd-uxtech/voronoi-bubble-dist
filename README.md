@@ -67,6 +67,9 @@ Beyond these four, VoronoiBubble also provides:
 | SVG rendering | Full SVG output with hierarchical cell layers |
 | Hierarchical labels | 3-level label system (group → subgroup → item) auto-sized by cell area |
 | Custom HTML labels | `renderGroupLabel` / `renderSubgroupLabel` callbacks for full HTML/CSS control |
+| Sentiment colormap | `sentiment` option — built-in diverging palette from a numeric field |
+| Per-cell color | `colorFunc` callback for full control of every cell's fill |
+| Responsive sizing | `viewBox`-based; scales to its container via CSS, no JS resize math |
 | Color system | Palette assigned by cell size; per-level lightness variation; `keyColors` overrides |
 | Click / hover | Cell selection, highlight, `clickFunc` callback |
 | Popup helpers | `showVoronoiPopup` (Observable) and `createDOMPopup` (standard DOM) |
@@ -251,17 +254,18 @@ If you omit `levels`/`value`, the data must use the default field names. The thi
 
 ```javascript
 {
-  width: 900,                   // Canvas width
-  height: 600,                  // Canvas height
+  width: 1200,                  // Drawing coordinate space width  (viewBox; default 1200)
+  height: 900,                  // Drawing coordinate space height (viewBox; default 900)
   maptitle: 'Title',            // Main title
   mapcaption: 'Caption',        // Subtitle
   positions: 'auto',   // Cell position control: 'auto' or array of {key, depth, x, y}
+  pieSize: 1,                   // Bubble cluster area ratio (linear shrink = sqrt(pieSize))
   showMetaLabel: true,          // Show depth-1 (group) labels
   showLabel: true,              // Show depth-2 (subgroup) labels
   showPercent: true,            // Show percentage labels
   pebble: true,                 // Enable pebble rendering
-  pebbleRound: 5,               // Corner rounding
-  pebbleWidth: 2,               // Pebble stroke width
+  pebbleRound: 25,              // Corner rounding (default 25)
+  pebbleWidth: 5,               // Pebble stroke width (default 5)
   clickFunc: function(d) {      // Click handler (receives {data, event})
     console.log('Clicked:', d);
   },
@@ -277,6 +281,8 @@ If you omit `levels`/`value`, the data must use the default field names. The thi
     { key: "Sales",     color: "#4CAF50" },
     { key: "Marketing", color: "#F44336" }
   ],
+  colorFunc: (rows, nodeData, defaultColor, ctx) => defaultColor, // Per-cell color override (see Color Assignment)
+  sentiment: 'sentimentScore',  // Built-in diverging sentiment colormap from a numeric field (see Sentiment Colormap)
   cellImage: (d) => ({          // Per-cell background image (optional)
     url: d.imageUrl,            //   Image URL
     mode: 'fill',               //   'fill': covers the cell | 'fit': proportional to cell size
@@ -286,6 +292,16 @@ If you omit `levels`/`value`, the data must use the default field names. The thi
   labelMode: 'show'             // 'show' | 'faded' | 'hidden' — leaf label + cell border visibility
 }
 ```
+
+### Responsive sizing (viewBox)
+
+`width` / `height` define the **drawing coordinate space**, emitted as the SVG
+`viewBox`. The display size is left to CSS: the SVG is rendered with
+`width: 100%; height: auto; max-width: <width>px`, so it fills its container,
+scales down on mobile without overflowing, and never grows past its native size
+on large screens. Fonts, strokes and cells all scale proportionally — no JS
+resize math. Draw large (the 1200×900 default) for roomy, uncramped labels and
+let CSS fit it to any container.
 
 ## Label Display Mode
 
@@ -543,6 +559,50 @@ treemap.render(data, {
 });
 ```
 
+### Per-cell color function (`colorFunc`)
+
+For full control, `colorFunc` is called for **every leaf cell** and its return
+value becomes that cell's fill. Use it to color cells by any data dimension
+(sentiment, status, a metric) instead of by group.
+
+```javascript
+treemap.render(data, {
+  // (rows, nodeData, defaultColor, ctx) => color
+  //   rows         - the original data row(s) for this leaf
+  //   nodeData     - the leaf's data node (nodeData.label = depth-2 value)
+  //   defaultColor - the palette color this cell would get; return it to fall back
+  //   ctx          - { parentColor, siblings, value, depth, metaLabel }
+  colorFunc: (rows, nodeData, defaultColor) => {
+    const score = rows?.[0]?.score;
+    return score != null ? myScale(score) : defaultColor;
+  }
+});
+```
+
+> **Group outlines when using `colorFunc`.** `colorFunc` only recolors leaf
+> cells; depth-1 (metaLabel) region outlines/labels still use the palette. So
+> that they don't show clashing rainbow colors, when `colorFunc` is set and you
+> pass **no** `colors`/`keyColors`, the metaLabel palette defaults to a single
+> neutral (`#444`). Pass your own `colors: ["#888"]` or `keyColors` to override.
+
+### Sentiment colormap (`sentiment`)
+
+Pass `sentiment: '<field>'` to color the chart by a numeric rating/sentiment
+field with a built-in 5-stop pastel diverging palette (red → yellow → green) —
+no interpolation code needed. Leaf cells are colored by their own average score;
+depth-1 regions by their group average.
+
+```javascript
+treemap.render(data, {
+  sentiment: 'sentimentScore'            // field holding the score
+  // or, with a custom domain:
+  // sentiment: { field: 'rating', domain: [1, 5] }   // default domain is [1, 5]
+});
+```
+
+Build a legend with `linear-gradient(to right, #F69F8F, #FAC49C, #FFE9A9, #C4DB9A, #88CD8B)`.
+Explicit `colorFunc` / `keyColors` always take precedence over the built-in mapping.
+
 ### Getting applied colors
 
 ```javascript
@@ -554,29 +614,59 @@ treemap.render(data, {
 });
 ```
 
-## Popup Helper Functions
+## Popups
 
-### `showVoronoiPopup(clickedData)`
+### `showVoronoiPopup(clicked, options)`
 
-Observable notebook popup.
+Wire it to `clickFunc` to show a popup on cell click. **No extra CSS is
+required** — the popup styles (box, arrow, positioning) are injected with the
+chart, so it looks right and lands on the clicked cell out of the box.
 
 ```javascript
 import { VoronoiTreemap, showVoronoiPopup } from "..."
 
-treemap.render(data, { clickFunc: showVoronoiPopup });
+treemap.render(data, {
+  clickFunc: (clicked) => showVoronoiPopup(clicked, {
+    format: "<b>{text}</b><br>score: {sentimentScore}<br>{review}"
+  })
+});
 ```
 
-### `createDOMPopup(clickedData)`
+**`format` template.** Any `{field}` placeholder is replaced with that field
+from the clicked row — both the built-in fields and any custom column you added
+to your data. `\n` becomes a line break. Unmatched placeholders are left as-is.
 
-DOM-based popup for standard web pages.
+Built-in fields: `{key}`, `{text}`, `{label}`, `{metaLabel}`, `{bubbleSize}`
+(legacy aliases `{bigClusterLabel}`, `{clusterLabel}`, `{region}`, `{budget}`
+also work). Default format is `"{text}"`.
 
 ```javascript
-import { VoronoiTreemap, createDOMPopup } from "..."
+// Custom fields flow straight through — add them to your data rows:
+const data = [{ metaLabel:"A", label:"A1", text:"Item", bubbleSize:120,
+                like_count:45, comment_count:12 }];
+showVoronoiPopup(clicked, { format: "{text}\n👍 {like_count} | 💬 {comment_count}" });
+```
 
+**Placement.** The popup is placed **above** the clicked cell by default and
+only drops below when there isn't enough room above (it would be clipped at the
+top). It is also clamped horizontally to stay within the viewport.
+
+**Options:** `format`, `popupId`, `className`, `onClose`.
+
+### `createDOMPopup(clicked)`
+
+Minimal DOM popup for standard web pages (no template). Use `showVoronoiPopup`
+for the templated, auto-positioned popup above.
+
+```javascript
 treemap.render(data, { clickFunc: createDOMPopup });
 ```
 
-### `getPopupStyles()` / `getBubbleStyles()`
+### `getBubbleStyles()` / `getPopupStyles()`
+
+`render()` already injects `getBubbleStyles()` into the SVG, so you normally
+don't need these. Call them manually only if you render labels/popups outside
+the generated SVG.
 
 ```javascript
 // Observable
@@ -588,7 +678,14 @@ style.textContent = getBubbleStyles();
 document.head.appendChild(style);
 ```
 
-`getBubbleStyles()` includes KoddiUD OnGothic font faces, `.region`, `.metaLabelArea`, `.labelArea`, `.textArea`, label styles, highlight/click states, and popup styles.
+`getBubbleStyles()` includes KoddiUD OnGothic font faces, `.region`,
+`.metaLabelArea`, `.labelArea`, `.textArea`, label styles, highlight/click
+states, and the popup styles.
+
+> **Custom popup styling.** Override the injected rules by targeting
+> `.voronoi-popup-container` (the positioned wrapper) and
+> `.voronoi-popup-content` (the visible box). Do **not** add a `transform` to
+> `.voronoi-popup-content` inside the container — the JS already positions it.
 
 ## getCellColors — Legend Example
 
@@ -702,6 +799,14 @@ The ESM/UMD bundles require peer dependencies:
 The standalone bundle includes all dependencies pre-bundled.
 
 ## Version History
+
+### 1.5.0
+- **Responsive sizing**: SVG now emits a `viewBox` and scales to its container via CSS (`width:100%; height:auto; max-width`). Default drawing size raised to **1200×900** for roomier labels. No JS resize math.
+- **Popups work with zero CSS**: positioning/box/arrow styles are injected with the chart. The popup is placed **above** the cell by default (drops below only when it would clip at the top), and the arrow tail tracks the placement.
+- **Popup `format`**: `{field}` placeholders resolve against any data column (built-in or custom), fixed so custom fields on leaves substitute reliably.
+- **`sentiment` option**: built-in 5-stop diverging colormap from a numeric rating field — leaf cells by their own average, regions by group average.
+- **`colorFunc` documented**: per-cell fill override. When used without `colors`/`keyColors`, the depth-1 (metaLabel) palette defaults to a single neutral (`#444`) so region outlines don't clash.
+- **Pebble defaults**: `pebbleWidth` 3 → **5** (rounding stays 25).
 
 ### 1.4.0
 - Split label renderers into `renderGroupLabel` (depth 1) / `renderSubgroupLabel` (depth 2) as the canonical API; `renderLabel` (unified) and `metaLabelRenderer`/`labelRenderer`/`regionLabelRenderer`/`bigClusterLabelRenderer` kept as legacy aliases

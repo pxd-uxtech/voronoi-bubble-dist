@@ -1960,7 +1960,11 @@ body {
 
 .textArea.highlite,
 .textArea:hover {
-    filter: hue-rotate(-5deg) brightness(0.95);
+    /* fill-based highlight — no SVG filter, so hovering stays fast even with
+       thousands of cells (filter forces per-cell offscreen raster + compositing).
+       --hl is a darker shade of each cell's own fill, set per-cell in _drawCells.
+       !important is required to beat the inline fill set in _drawCells. */
+    fill: var(--hl, #00000099) !important;
 }
 
 .label-item {
@@ -2124,6 +2128,7 @@ body {
         maptitle: "",
         caption: "",
         clickFunc: () => {},
+        hoverFunc: null, // (cell|null) => void — cell = { ...row, depth, event, target }; null on leave
         colorFunc: null,
         sentiment: null, // 'fieldName' | { field, domain:[lo,hi] } — built-in diverging sentiment colormap
         getCellColors: null, // (cellColors) => void - Callback to receive actual cell colors
@@ -2614,7 +2619,7 @@ body {
     // === 3. Visualization Element Drawing Methods ===
 
     _drawCells() {
-      const { clickFunc } = this.params;
+      const { clickFunc, hoverFunc } = this.params;
       const self = this;
 
       this.voronoiGroup
@@ -2624,6 +2629,14 @@ body {
         .append("path")
         .attr("d", (d) => "M" + d.polygon.join("L") + "Z")
         .style("fill", (d) => d.color ?? d.parent.color)
+        // Per-cell hover highlight color: a darker shade of the cell's own fill,
+        // precomputed once so :hover can swap `fill` to var(--hl) via CSS !important
+        // (which beats the inline fill) — no SVG filter, so it stays fast with many cells.
+        .style("--hl", (d) => {
+          const base = d.color ?? d.parent?.color;
+          const c = base ? d3.color(base) : null;
+          return c ? c.darker(0.6).formatHex() : "#00000099";
+        })
         .attr("class", (d) => {
           const areaClass = d.depth === 1 ? "metaLabelArea" : d.depth === 2 ? "labelArea" : d.depth === 3 ? "textArea" : "rootArea";
           return `${areaClass} area-${d.id}`;
@@ -2645,6 +2658,10 @@ body {
           const label = self._clusterLabelCache?.get(d.data.data.text);
           if (label) label.node().style.opacity = 1;
           // Highlight is handled by CSS :hover - no JS needed
+
+          // User hover callback — symmetric with clickFunc. Payload = original row
+          // fields + depth (1/2/3) + event (for tooltip positioning) + target DOM node.
+          hoverFunc?.({ ...d.data.data, depth: d.depth, event: e, target: this });
         })
         .on("mouseleave", function (e, d) {
           // Label visibility - use cached lookups (O(1))
@@ -2660,6 +2677,9 @@ body {
             label.node().style.opacity = label._cachedRatio >= ratioLimit ? 1 : 0;
           }
           // Highlight is handled by CSS :hover - no JS needed
+
+          // Leaving a cell — null signals "no hover target" (clickFunc uses "").
+          hoverFunc?.(null);
         });
     }
 

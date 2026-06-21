@@ -27785,13 +27785,23 @@ class VoronoiTreemap {
   // === 1. Initial Setup Methods ===
 
   _setupSVG() {
-    // Drawing coordinate space = params.width × params.height (the viewBox).
+    // Drawing coordinate space = params.width × viewBox height (the viewBox).
     // Display size is left to CSS: fills the container width, scales down on
     // mobile, and never grows past the native drawing size on large screens.
     // No JS scale math — the browser scales fonts/strokes/cells via the viewBox.
+
+    // When there's a title, add ~1 line of breathing room above it: grow both
+    // margin.top and the viewBox height by the same amount. The chart body and
+    // the bottom margin stay the same size — everything just shifts down, so
+    // the title gets headroom and nothing is clipped at the bottom.
+    const hasTitle = !!(this.params.maptitle && String(this.params.maptitle).trim());
+    const titleSpace = hasTitle ? 30 : 0;
+    this.margin.top = 50 + titleSpace;
+    const vbHeight = this.params.height + titleSpace;
+
     this.svg = d3
       .create("svg")
-      .attr("viewBox", `0 0 ${this.params.width} ${this.params.height}`)
+      .attr("viewBox", `0 0 ${this.params.width} ${vbHeight}`)
       .attr("preserveAspectRatio", "xMidYMid meet")
       .style("width", "100%")
       .style("height", "auto")
@@ -27807,7 +27817,7 @@ class VoronoiTreemap {
       .style("fill", "transparent");
 
     const innerWidth = this.params.width - this.margin.left - this.margin.right;
-    const innerHeight = this.params.height - this.margin.top - this.margin.bottom;
+    const innerHeight = vbHeight - this.margin.top - this.margin.bottom;
     this.width = innerWidth * Math.sqrt(this.params.pieSize);
     this.height = this.width * (innerHeight / innerWidth);
   }
@@ -27852,12 +27862,12 @@ class VoronoiTreemap {
       .append("text")
       .attr("class", "title")
       .attr("text-anchor", "middle")
-      .attr("font-size", "22")
+      .attr("font-size", "28")
       .attr("font-weight", "600")
       .attr(
         "transform",
         `translate(${this.margin.left + this.width / 2},${
-          this.margin.top - 15
+          this.margin.top - 22
         })`
       )
       .html(this.params.maptitle);

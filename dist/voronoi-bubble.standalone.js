@@ -28139,7 +28139,7 @@ class VoronoiTreemap {
       .style("--hl", (d) => {
         const base = d.color ?? d.parent?.color;
         const c = base ? d3.color(base) : null;
-        return c ? c.darker(0.6).formatHex() : "#00000099";
+        return c ? c.darker(0.4).formatHex() : "#00000099";
       })
       .attr("class", (d) => {
         const areaClass = d.depth === 1 ? "metaLabelArea" : d.depth === 2 ? "labelArea" : d.depth === 3 ? "textArea" : "rootArea";

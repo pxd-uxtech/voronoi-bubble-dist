@@ -2129,6 +2129,7 @@ body {
         caption: "",
         clickFunc: () => {},
         hoverFunc: null, // (cell|null) => void — cell = { ...row, depth, event, target }; null on leave
+        labelHoverFunc: null, // (label|null) => void — hover on depth-2 (big cluster) labels; label = { ...row, label, key, depth, event, target }; null on leave. Enables pointer-events on labels (clicks are forwarded to the cell behind).
         colorFunc: null,
         sentiment: null, // 'fieldName' | { field, domain:[lo,hi] } — built-in diverging sentiment colormap
         getCellColors: null, // (cellColors) => void - Callback to receive actual cell colors
@@ -2969,6 +2970,41 @@ body {
             d.value / this.totalValue >= ratioLimit ? 1 : 0
           );
       }
+
+      // labelHoverFunc: when set, depth-2 (big cluster) labels receive hover
+      // events so a consumer can show a description. Labels are normally
+      // pointer-events:none so clicks fall through to the cell behind them; we
+      // preserve that by forwarding label clicks to the underlying cell (the
+      // label itself only reacts to hover).
+      const { labelHoverFunc } = this.params;
+      if (labelHoverFunc) {
+        const payloadOf = (d, e, node) => ({
+          ...(d.data?.data || {}),
+          label: d.data.key,
+          key: d.data.key,
+          depth: d.depth,
+          event: e,
+          target: node,
+        });
+        this.bigLabelsGroup
+          .selectAll("foreignObject.bigcluster-label-foreign, text.label-item")
+          .style("pointer-events", "all")
+          .style("cursor", "default")
+          .on("mouseenter", function (e, d) { labelHoverFunc(payloadOf(d, e, this)); })
+          .on("mouseleave", function () { labelHoverFunc(null); })
+          .on("click", function (e) {
+            // Hover-only label: forward the click to the cell behind it.
+            this.style.pointerEvents = "none";
+            const under = document.elementFromPoint(e.clientX, e.clientY);
+            this.style.pointerEvents = "all";
+            if (under && under !== this) {
+              under.dispatchEvent(new MouseEvent("click", {
+                bubbles: true, cancelable: true, view: window,
+                clientX: e.clientX, clientY: e.clientY,
+              }));
+            }
+          });
+      }
     }
 
     _drawPercentLabels() {
@@ -3134,6 +3170,10 @@ body {
 
       const zoom = d3.zoom()
         .scaleExtent([1, 12])
+        // Zoom/pan only while the Option/Alt key is held. Touch events (mobile)
+        // carry no altKey, so they never pass — this also disables zoom on mobile.
+        // dblclick-to-reset is a separate custom listener below, unaffected by this.
+        .filter((event) => event.altKey && !event.button)
         .constrain((transform) => {
           const { k } = transform;
           if (k <= 1) return d3.zoomIdentity;

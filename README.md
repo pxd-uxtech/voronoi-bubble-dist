@@ -269,6 +269,15 @@ If you omit `levels`/`value`, the data must use the default field names. The thi
   clickFunc: function(d) {      // Click handler (receives {data, event})
     console.log('Clicked:', d);
   },
+  hoverFunc: (cell) => {        // Cell hover (symmetric with clickFunc)
+    // cell = { ...row, depth, event, target } on enter, null on leave
+    if (cell) showTip(cell.text, cell.event.clientX, cell.event.clientY); else hideTip();
+  },
+  labelHoverFunc: (lbl) => {    // Hover on depth-2 (big cluster) labels
+    // lbl = { ...row, label, key, depth, event, target } on enter, null on leave.
+    // Enables pointer-events on labels; clicks still fall through to the cell behind.
+    if (lbl) showTip(descOf(lbl.label), lbl.event.clientX, lbl.event.clientY); else hideTip();
+  },
   getCellColors: function(cellColors) { // Callback to receive actual cell colors
     console.log('Cell colors:', cellColors);
   },

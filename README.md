@@ -262,7 +262,7 @@ If you omit `levels`/`value`, the data must use the default field names. The thi
   pieSize: 1,                   // Bubble cluster area ratio (linear shrink = sqrt(pieSize))
   showMetaLabel: true,          // Show depth-1 (group) labels
   showLabel: true,              // Show depth-2 (subgroup) labels
-  showPercent: true,            // Show percentage labels
+  showPercent: true,            // Show percent under each depth-1 group label
   pebble: true,                 // Enable pebble rendering
   pebbleRound: 25,              // Corner rounding (default 25)
   pebbleWidth: 5,               // Pebble stroke width (default 5)
@@ -298,7 +298,7 @@ If you omit `levels`/`value`, the data must use the default field names. The thi
     opacity: 0.8,               //   0–1
     colorMode: 'original'       //   'original': true color | 'tint': grayscale + cell color blend
   }),
-  labelMode: 'show'             // 'show' | 'faded' | 'hidden' — leaf label + cell border visibility
+  labelMode: 'faded'            // 'show' | 'faded' | 'hidden' — leaf label + cell border visibility
 }
 ```
 
@@ -419,17 +419,21 @@ renderGroupLabel: (d, defaultHtml, ctx) => {
 }
 ```
 
-### Tip: show the group percent neatly under the label
+### Group percentages
 
-`showPercent` draws the percentage on its own and it can land in an awkward spot.
-For a clean result, render it yourself inside `renderGroupLabel` — put `ctx.key`
-on the first line and `ctx.percentText` right under it. `ctx` gives you everything
-you need: `ctx.key` (group name), `ctx.percentText` (auto-computed percent string),
-and `ctx.fontSize` / `ctx.darkerColor` for sizing and the outline color.
+`showPercent: true` renders the percentage directly under each group label. The
+name and percentage share one HTML label, so they stay aligned and do not collide
+with each other. It also makes the group label visible when `showMetaLabel` is
+omitted.
+
+An explicit `renderGroupLabel` (or one of its legacy aliases) always takes
+precedence. In that case no separate percentage is added; use `ctx.percentText`
+inside your renderer wherever you want it.
 
 ```javascript
 treemap.render(data, {
   showMetaLabel: true,
+  showPercent: true,
   renderGroupLabel: (d, defaultHtml, ctx) => `
     <div style="text-align:center; color:#fff;">
       <div style="font-weight:700; font-size:${ctx.fontSize * 0.95}em;

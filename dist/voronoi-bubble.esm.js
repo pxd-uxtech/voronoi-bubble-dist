@@ -344,15 +344,22 @@ class LabelAdjuster {
    * @param {Object} [options={}] - Adjustment options
    * @param {number} [options.verticalSpacing=0] - Additional vertical spacing between labels
    * @param {number} [options.delay=100] - Delay in ms before adjustment (for DOM rendering)
+   * @param {number} [options.maxParentMove=18] - Maximum group-label movement in pixels
+   * @param {number} [options.cellPadding=2] - Minimum label padding from polygon edges
    */
   adjust(treemap, options = {}) {
-    const { verticalSpacing = 0, delay = 100 } = options;
+    const {
+      verticalSpacing = 0,
+      delay = 100,
+      maxParentMove = 18,
+      cellPadding = 2
+    } = options;
     const d3 = this.d3;
 
     setTimeout(() => {
       const svg = d3.select(treemap);
 
-      svg.selectAll(".label-item").each(function () {
+      svg.selectAll(".label-item, .bigcluster-label-foreign").each(function () {
         adjustFieldLabel(d3.select(this));
       });
 
@@ -418,15 +425,15 @@ class LabelAdjuster {
       if (!node) return null;
 
       const bbox = node.getBBox();
-      let { width, height } = bbox;
+      const { width, height } = bbox;
       const tspanCount = element.selectAll("tspan tspan").size() || 1;
       const transform = parseTransform(element.attr("transform"));
 
       return {
         originalX: transform.x,
         originalY: transform.y,
-        x: transform.x + width / 2,
-        y: transform.y + height / 2,
+        x: transform.x + bbox.x + width / 2,
+        y: transform.y + bbox.y + height / 2,
         width,
         height,
         tspanCount
@@ -458,8 +465,21 @@ class LabelAdjuster {
       const target = contentEl || flexWrapper;
       if (target) {
         const rect = target.getBoundingClientRect();
-        if (rect.width > 0) width = rect.width;
-        if (rect.height > 0) height = rect.height;
+        const matrix = node.getScreenCTM();
+        if (rect.width > 0 && rect.height > 0 && matrix) {
+          const svg = node.ownerSVGElement;
+          const topLeft = svg.createSVGPoint();
+          const bottomRight = svg.createSVGPoint();
+          topLeft.x = rect.left;
+          topLeft.y = rect.top;
+          bottomRight.x = rect.right;
+          bottomRight.y = rect.bottom;
+          const inverse = matrix.inverse();
+          const localTopLeft = topLeft.matrixTransform(inverse);
+          const localBottomRight = bottomRight.matrixTransform(inverse);
+          width = Math.abs(localBottomRight.x - localTopLeft.x);
+          height = Math.abs(localBottomRight.y - localTopLeft.y);
+        }
       }
 
       // Content is flex-centered within the foreignObject
@@ -493,6 +513,87 @@ class LabelAdjuster {
         minY: Math.min(...ys),
         maxY: Math.max(...ys)
       };
+    }
+
+    function moveBox(box, dx, dy) {
+      return {
+        ...box,
+        originalX: box.originalX + dx,
+        originalY: box.originalY + dy,
+        x: box.x + dx,
+        y: box.y + dy
+      };
+    }
+
+    function boxFitsPolygon(box, polygon) {
+      if (!polygon?.length) return false;
+      const halfWidth = box.width / 2 + cellPadding;
+      const halfHeight = box.height / 2 + cellPadding;
+      const points = [
+        [box.x - halfWidth, box.y - halfHeight],
+        [box.x, box.y - halfHeight],
+        [box.x + halfWidth, box.y - halfHeight],
+        [box.x + halfWidth, box.y],
+        [box.x + halfWidth, box.y + halfHeight],
+        [box.x, box.y + halfHeight],
+        [box.x - halfWidth, box.y + halfHeight],
+        [box.x - halfWidth, box.y]
+      ];
+      return points.every((point) => d3.polygonContains(polygon, point));
+    }
+
+    function setLabelPosition(label, box, x, y) {
+      if (label.node()?.tagName === "foreignObject") {
+        const dx = x - box.originalX;
+        const dy = y - box.originalY;
+        label
+          .attr("x", parseFloat(label.attr("x") || 0) + dx)
+          .attr("y", parseFloat(label.attr("y") || 0) + dy);
+      } else {
+        label.attr("transform", `translate(${x},${y})`);
+      }
+    }
+
+    function movementCandidates(labelBox, blockerBox) {
+      const gap = 2 + verticalSpacing / 2;
+      const left = blockerBox.x - blockerBox.width / 2 - labelBox.width / 2 - gap;
+      const right = blockerBox.x + blockerBox.width / 2 + labelBox.width / 2 + gap;
+      const above = blockerBox.y - blockerBox.height / 2 - labelBox.height / 2 - gap;
+      const below = blockerBox.y + blockerBox.height / 2 + labelBox.height / 2 + gap;
+
+      return [
+        { dx: 0, dy: above - labelBox.y },
+        { dx: 0, dy: below - labelBox.y },
+        { dx: left - labelBox.x, dy: 0 },
+        { dx: right - labelBox.x, dy: 0 },
+        { dx: left - labelBox.x, dy: above - labelBox.y },
+        { dx: right - labelBox.x, dy: above - labelBox.y },
+        { dx: left - labelBox.x, dy: below - labelBox.y },
+        { dx: right - labelBox.x, dy: below - labelBox.y }
+      ].sort((a, b) => Math.hypot(a.dx, a.dy) - Math.hypot(b.dx, b.dy));
+    }
+
+    function findPolygonMove(labelBox, blockerBox, polygon) {
+      if (!checkOverlap(labelBox, blockerBox)) return { dx: 0, dy: 0 };
+      return movementCandidates(labelBox, blockerBox).find(({ dx, dy }) => {
+        const moved = moveBox(labelBox, dx, dy);
+        return boxFitsPolygon(moved, polygon) && !checkOverlap(moved, blockerBox);
+      }) || null;
+    }
+
+    function parentMovementCandidates(parentBox, polygon) {
+      const candidates = [{ dx: 0, dy: 0 }];
+      const step = 3;
+      for (let radius = step; radius <= maxParentMove; radius += step) {
+        for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
+          const dx = Math.cos(angle) * radius;
+          const dy = Math.sin(angle) * radius;
+          if (boxFitsPolygon(moveBox(parentBox, dx, dy), polygon)) {
+            candidates.push({ dx, dy });
+          }
+        }
+      }
+      return candidates;
     }
 
     /**
@@ -589,8 +690,11 @@ class LabelAdjuster {
       }
 
       if (checkOverlap(sectorBox, fieldBox)) {
-        const newPos = findMinimumMove(sectorBox, fieldBox, cellBounds);
-        sectorLabel.attr("transform", `translate(${newPos.x},${newPos.y})`);
+        const move = findPolygonMove(sectorBox, fieldBox, data.polygon);
+        const newPos = move
+          ? { x: sectorBox.originalX + move.dx, y: sectorBox.originalY + move.dy }
+          : findMinimumMove(sectorBox, fieldBox, cellBounds);
+        setLabelPosition(sectorLabel, sectorBox, newPos.x, newPos.y);
       }
     }
 
@@ -623,12 +727,28 @@ class LabelAdjuster {
       if (!parentRegionElement) return;
 
       const regionLabel = d3.select(parentRegionElement);
-      const fieldBox = getLabelBox(fieldLabel);
+      const isFieldForeignObject = fieldLabel.node()?.tagName === "foreignObject";
+      const fieldBox = isFieldForeignObject
+        ? getForeignObjectBox(fieldLabel)
+        : getLabelBox(fieldLabel);
       const isForeignObject = parentRegionElement.tagName === "foreignObject";
       const regionBox = isForeignObject
         ? getForeignObjectBox(regionLabel)
         : getLabelBox(regionLabel);
       const cellBounds = getCellBounds(data);
+      const regionData = regionLabel.datum();
+      const siblingBoxes = d3
+        .select(treemap)
+        .selectAll(".label-item, .bigcluster-label-foreign")
+        .filter((d) => d !== data && d?.parent === data.parent)
+        .nodes()
+        .map((node) => {
+          const selection = d3.select(node);
+          return node.tagName === "foreignObject"
+            ? getForeignObjectBox(selection)
+            : getLabelBox(selection);
+        })
+        .filter(Boolean);
 
       if (
         !cellBounds ||
@@ -648,8 +768,36 @@ class LabelAdjuster {
         String(regionKey).match(/[^ ]/) &&
         checkOverlap(fieldBox, regionBox)
       ) {
-        const newPos = findMinimumMove(fieldBox, regionBox, cellBounds);
-        fieldLabel.attr("transform", `translate(${newPos.x},${newPos.y})`);
+        let best = null;
+        parentMovementCandidates(regionBox, regionData?.polygon).forEach((parentMove) => {
+          const movedRegion = moveBox(regionBox, parentMove.dx, parentMove.dy);
+          if (siblingBoxes.some((box) => checkOverlap(movedRegion, box))) return;
+          const fieldMove = findPolygonMove(fieldBox, movedRegion, data.polygon);
+          if (!fieldMove) return;
+
+          // Moving a group label is visually more expensive than moving its child.
+          const score = Math.hypot(fieldMove.dx, fieldMove.dy) +
+            Math.hypot(parentMove.dx, parentMove.dy) * 2.5;
+          if (!best || score < best.score) best = { parentMove, fieldMove, score };
+        });
+
+        if (best) {
+          setLabelPosition(
+            regionLabel,
+            regionBox,
+            regionBox.originalX + best.parentMove.dx,
+            regionBox.originalY + best.parentMove.dy
+          );
+          setLabelPosition(
+            fieldLabel,
+            fieldBox,
+            fieldBox.originalX + best.fieldMove.dx,
+            fieldBox.originalY + best.fieldMove.dy
+          );
+        } else {
+          const newPos = findMinimumMove(fieldBox, regionBox, cellBounds);
+          setLabelPosition(fieldLabel, fieldBox, newPos.x, newPos.y);
+        }
       }
     }
   }
@@ -2130,7 +2278,7 @@ class VoronoiTreemap {
       renderSubgroupLabel: null, // depth 2 (subgroup)
       adaptiveIterations: true,
       cellImage: null, // (datum) => { url, mode: 'fill'|'fit', opacity: 0~1, colorMode: 'original'|'tint' } | null
-      labelMode: 'show', // 'show' | 'faded' | 'hidden'
+      labelMode: 'faded', // 'show' | 'faded' | 'hidden'
       levels: ['metaLabel', 'label', 'text'], // field names per depth (0, 1, 2)
       value: 'bubbleSize' // field name for size weight
     };
@@ -2187,6 +2335,18 @@ class VoronoiTreemap {
       const r = normalizedOptions.renderLabel;
       if (!normalizedOptions.renderGroupLabel) normalizedOptions.renderGroupLabel = (d, html, ctx) => r(d, html, ctx);
       if (!normalizedOptions.renderSubgroupLabel) normalizedOptions.renderSubgroupLabel = (d, html, ctx) => r(d, html, ctx);
+    }
+    // Percentages belong to the group label instead of a separately positioned
+    // SVG text node. An explicit group renderer always owns the full label.
+    if (normalizedOptions.showPercent && !normalizedOptions.renderGroupLabel) {
+      normalizedOptions.renderGroupLabel = (d, defaultHtml, ctx) => `
+        <div style="text-align:center; color:#fff; line-height:1.12;">
+          <div style="font-weight:700; font-size:${ctx.fontSize * 0.95}em;
+                      -webkit-text-stroke:3px ${ctx.darkerColor}; paint-order:stroke fill;">
+            ${ctx.key}<br>
+            <small style="font-size:76%; font-weight:600;">${ctx.percentText}</small>
+          </div>
+        </div>`;
     }
 
     this.params = { ...VoronoiTreemap.DEFAULT_OPTIONS, ...normalizedOptions };
@@ -2804,7 +2964,7 @@ class VoronoiTreemap {
               VoronoiTreemapHelpers.getLabelHeightOffset(this, d);
           }
         )
-        .style("opacity", showMetaLabel ? 1 : 0)
+        .style("opacity", showMetaLabel || this.params.showPercent ? 1 : 0)
         .style("pointer-events", "none")
         .style("overflow", "visible")
         .append("xhtml:div")
@@ -2985,42 +3145,9 @@ class VoronoiTreemap {
   }
 
   _drawPercentLabels() {
-    const { showPercent } = this.params;
-    const percent_label_depth =
-      this.allNodes.filter((d) => d.depth === 1).length > 1 ? 1 : 2;
-
-    this.percentLabelsGroup
-      .selectAll("text")
-      .data(this.allNodes.filter((d) => d.depth === percent_label_depth))
-      .enter()
-      .append("text")
-      .attr("class", (d) => `percent-label percent label-${d.id}`)
-      .attr("text-anchor", "middle")
-      .style(
-        "font-size",
-        (d) => VoronoiTreemapHelpers.fontScale(this.hierarchy, d) * 0.8 + "em"
-      )
-      .attr(
-        "transform",
-        (d) => {
-          if (!d.polygon?.site) return `translate(0,0)`;
-          return `translate(${[
-            d.polygon.site.x,
-            d.polygon.site.y +
-              VoronoiTreemapHelpers.fontScale(this.hierarchy, d) *
-                8 *
-                (VoronoiTreemapHelpers.multiline(d.data.key, true)[1] + 2.2)
-          ]})`;
-        }
-      )
-      .text((d) => " " + d3.format(".0%")(d.value / this.totalValue))
-      .attr("opacity", (d) =>
-        showPercent
-          ? Math.round((d.value / this.totalValue) * 100) > 0
-            ? 1
-            : 0
-          : 0
-      );
+    // showPercent is rendered as part of the depth-1 group label. Keeping the
+    // method preserves the drawing pipeline without creating collision-prone
+    // standalone percentage nodes.
   }
 
   _drawSectorLabels() {

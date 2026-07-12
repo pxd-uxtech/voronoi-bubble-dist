@@ -160,7 +160,8 @@ chart = {
   return treemap.render(data, {
     width: 900,
     height: 600,
-    maptitle: 'My Treemap',
+    title: 'My Treemap',
+    caption: 'Optional subtitle',
     levels: ['group', 'subgroup'],
     value: 'value',
     positions: 'auto',
@@ -204,7 +205,8 @@ For local HTML files (using `file://` protocol), use the UMD standalone bundle:
     const svg = treemap.render(data, {
       width: 900,
       height: 600,
-      maptitle: 'My Treemap',
+      title: 'My Treemap',
+      caption: 'Optional subtitle',
       levels: ['group', 'subgroup'],
       value: 'value',
       clickFunc: showVoronoiPopup
@@ -252,12 +254,17 @@ If you omit `levels`/`value`, the data must use the default field names. The thi
 
 ## Configuration Options
 
+> **Use `title` and `caption` for chart headings.** These are the canonical
+> option names and the names agents and new integrations should generate.
+> The older `maptitle` and `mapcaption` names remain supported only for
+> backward compatibility. If both forms are supplied, `title` / `caption` win.
+
 ```javascript
 {
   width: 1200,                  // Drawing coordinate space width  (viewBox; default 1200)
   height: 900,                  // Drawing coordinate space height (viewBox; default 900)
-  maptitle: 'Title',            // Main title
-  mapcaption: 'Caption',        // Subtitle
+  title: 'Title',               // Main chart title (canonical)
+  caption: 'Caption',           // Subtitle below the chart (canonical)
   positions: 'auto',   // Cell position control: 'auto' or array of {key, depth, x, y}
   pieSize: 1,                   // Bubble cluster area ratio (linear shrink = sqrt(pieSize))
   showMetaLabel: true,          // Show depth-1 (group) labels
@@ -479,10 +486,14 @@ treemap.render(data, {
 
 ### Legacy aliases (still supported)
 
-Earlier option names map automatically to the canonical renderers (an explicit `renderGroupLabel`/`renderSubgroupLabel` always wins):
+Earlier option names map automatically to their canonical equivalents. Explicit
+canonical options always win:
 
 ```javascript
 treemap.render(data, {
+  maptitle: 'Legacy title',       // -> title
+  mapcaption: 'Legacy caption',   // -> caption
+
   metaLabelRenderer:     (d, defaultHtml, ctx) => `...`,  // → renderGroupLabel    (depth 1)
   regionLabelRenderer:   (d, defaultHtml, ctx) => `...`,  // → renderGroupLabel    (depth 1)
   labelRenderer:         (d, defaultHtml, ctx) => `...`,  // → renderSubgroupLabel (depth 2)

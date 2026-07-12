@@ -2223,7 +2223,8 @@ body {
  * const svg = treemap.render(data, {
  *   width: 800,
  *   height: 600,
- *   maptitle: 'My Treemap'
+ *   title: 'My Treemap',
+ *   caption: 'Optional subtitle'
  * });
  * document.body.appendChild(svg);
  */
@@ -2250,7 +2251,7 @@ class VoronoiTreemap {
     return {
       width: 1200,
       height: 900,
-      maptitle: "",
+      title: "",
       caption: "",
       clickFunc: () => {},
       hoverFunc: null, // (cell|null) => void — cell = { ...row, depth, event, target }; null on leave
@@ -2310,6 +2311,10 @@ class VoronoiTreemap {
   render(data, options = {}) {
     // Legacy option name support
     const normalizedOptions = { ...options };
+    if (!('title' in normalizedOptions) && 'maptitle' in normalizedOptions)
+      normalizedOptions.title = normalizedOptions.maptitle;
+    if (!('caption' in normalizedOptions) && 'mapcaption' in normalizedOptions)
+      normalizedOptions.caption = normalizedOptions.mapcaption;
     if ('showRegion' in normalizedOptions && !('showMetaLabel' in normalizedOptions))
       normalizedOptions.showMetaLabel = normalizedOptions.showRegion;
     if (!('positions' in normalizedOptions)) {
@@ -2438,7 +2443,7 @@ class VoronoiTreemap {
     // margin.top and the viewBox height by the same amount. The chart body and
     // the bottom margin stay the same size — everything just shifts down, so
     // the title gets headroom and nothing is clipped at the bottom.
-    const hasTitle = !!(this.params.maptitle && String(this.params.maptitle).trim());
+    const hasTitle = !!(this.params.title && String(this.params.title).trim());
     const titleSpace = hasTitle ? 30 : 0;
     this.margin.top = 50 + titleSpace;
     const vbHeight = this.params.height + titleSpace;
@@ -2514,7 +2519,7 @@ class VoronoiTreemap {
           this.margin.top - 22
         })`
       )
-      .html(this.params.maptitle);
+      .html(this.params.title);
 
     this.svg
       .append("g")

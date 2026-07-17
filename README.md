@@ -285,6 +285,7 @@ If you omit `levels`/`value`, the data must use the default field names. The thi
     // Enables pointer-events on labels; clicks still fall through to the cell behind.
     if (lbl) showTip(descOf(lbl.label), lbl.event.clientX, lbl.event.clientY); else hideTip();
   },
+  hoverVisualLimit: 0,          // Enable hover highlight / label reveal up to this leaf count
   getCellColors: function(cellColors) { // Callback to receive actual cell colors
     console.log('Cell colors:', cellColors);
   },

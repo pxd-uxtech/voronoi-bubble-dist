@@ -25618,12 +25618,14 @@ class PebbleRenderer {
 
     const outlineGroup = chartGroup
       .insert('g', 'g.cell + *')
-      .attr('class', 'cell-outline');
+      .attr('class', 'cell-outline')
+      .attr('pointer-events', 'none');
 
     const outlineGroup2 = chartGroup
       .insert('g', 'g.cell + *')
       .attr('class', 'cell-outline')
-      .attr('id', 'outline2');
+      .attr('id', 'outline2')
+      .attr('pointer-events', 'none');
 
     this._renderDepth2Outlines(cell, outlineGroup2, colorVarFunc);
     this._renderDepth1Outlines(cell, outlineGroup, round, width);
@@ -26560,6 +26562,7 @@ const VoronoiTreemapHelpers = {
    */
   colorvariation: function (color, vdomain, value, desc) {
     const domain = d3.extent(vdomain);
+    if (domain[0] === domain[1]) return d3.hsl(color).formatHex();
     let vScale = d3.scaleLinear().domain(domain).range([0.3, 1]);
     let c = d3.hsl(color);
     if (c.l > 0.8) c.l = 0.8;
@@ -26588,7 +26591,7 @@ const VoronoiTreemapHelpers = {
     } else if (hierarchy.depth === 3) {
       hierarchy.color = this.colorvariation(
         hierarchy.parent.color,
-        hierarchy.parent.parent.children.map((d) => d.value),
+        hierarchy.parent.children.map((d) => d.value),
         hierarchy.value,
         hierarchy.depth + hierarchy.data.key
       );
@@ -27595,18 +27598,13 @@ body {
     cursor: pointer;
 }
 
+svg.hover-visual-enabled .textArea:hover {
+    fill: var(--hl, #00000099) !important;
+}
+
 .textArea.clicked {
     stroke-width: 1px;
     filter: hue-rotate(-5deg) brightness(0.9);
-}
-
-.textArea.highlite,
-.textArea:hover {
-    /* fill-based highlight — no SVG filter, so hovering stays fast even with
-       thousands of cells (filter forces per-cell offscreen raster + compositing).
-       --hl is a darker shade of each cell's own fill, set per-cell in _drawCells.
-       !important is required to beat the inline fill set in _drawCells. */
-    fill: var(--hl, #00000099) !important;
 }
 
 .label-item {
@@ -27772,6 +27770,7 @@ class VoronoiTreemap {
       caption: "",
       clickFunc: () => {},
       hoverFunc: null, // (cell|null) => void — cell = { ...row, depth, event, target }; null on leave
+      hoverVisualLimit: 0, // Enable cell hover highlight / label reveal up to this leaf-cell count
       labelHoverFunc: null, // (label|null) => void — hover on depth-2 (big cluster) labels; label = { ...row, label, key, depth, event, target }; null on leave. Enables pointer-events on labels (clicks are forwarded to the cell behind).
       colorFunc: null,
       sentiment: null, // 'fieldName' | { field, domain:[lo,hi] } — built-in diverging sentiment colormap
@@ -27871,6 +27870,8 @@ class VoronoiTreemap {
         </div>`;
     }
 
+    this._hasExplicitClickFunc = typeof normalizedOptions.clickFunc === "function";
+    this._hasExplicitHoverFunc = typeof normalizedOptions.hoverFunc === "function";
     this.params = { ...VoronoiTreemap.DEFAULT_OPTIONS, ...normalizedOptions };
 
     // Normalize field names: custom levels/value -> standard metaLabel/label/text/bubbleSize
@@ -27932,6 +27933,8 @@ class VoronoiTreemap {
     this._drawCellImages();
     this._drawLabels();
     this._buildLabelCache();
+    this._setupCellInteraction();
+    this._applyHoverVisualMode();
     this._applyPostEffects();
     this._applyLabelMode();
     this._setupZoom();
@@ -28289,9 +28292,6 @@ class VoronoiTreemap {
   // === 3. Visualization Element Drawing Methods ===
 
   _drawCells() {
-    const { clickFunc, hoverFunc } = this.params;
-    const self = this;
-
     this.voronoiGroup
       .selectAll("path")
       .data(this.allNodes)
@@ -28299,13 +28299,10 @@ class VoronoiTreemap {
       .append("path")
       .attr("d", (d) => "M" + d.polygon.join("L") + "Z")
       .style("fill", (d) => d.color ?? d.parent.color)
-      // Per-cell hover highlight color: a darker shade of the cell's own fill,
-      // precomputed once so :hover can swap `fill` to var(--hl) via CSS !important
-      // (which beats the inline fill) — no SVG filter, so it stays fast with many cells.
       .style("--hl", (d) => {
         const base = d.color ?? d.parent?.color;
         const c = base ? d3.color(base) : null;
-        return c ? c.darker(0.4).formatHex() : "#00000099";
+        return c ? c.darker(0.35).formatHex() : "#00000099";
       })
       .attr("class", (d) => {
         const areaClass = d.depth === 1 ? "metaLabelArea" : d.depth === 2 ? "labelArea" : d.depth === 3 ? "textArea" : "rootArea";
@@ -28313,44 +28310,81 @@ class VoronoiTreemap {
       })
       .style("fill-opacity", (d) => (d.depth === 3 ? 1 : 0))
       .attr("pointer-events", (d) => (d.depth === 3 ? "all" : "none"))
-      .on("click", function (e, d) {
-        let area = self.voronoiGroup.select(`.area-${d.id}`);
-        const clicked = area.attr("class").match("clicked");
-        self.voronoiGroup.select(`.clicked`).classed("clicked", false);
-        area.classed("clicked", !clicked);
-        clickFunc(clicked ? "" : { ...d.data, event: e, d, clickArea: area });
-      })
-      .on("mouseenter", function (e, d) {
-        // Label visibility - use cached lookups (O(1))
-        const label1 = self._bigClusterLabelCache?.get(d.data.data.label);
-        if (label1) label1.node().style.opacity = 1;
-
-        const label = self._clusterLabelCache?.get(d.data.data.text);
-        if (label) label.node().style.opacity = 1;
-        // Highlight is handled by CSS :hover - no JS needed
-
-        // User hover callback — symmetric with clickFunc. Payload = original row
-        // fields + depth (1/2/3) + event (for tooltip positioning) + target DOM node.
-        hoverFunc?.({ ...d.data.data, depth: d.depth, event: e, target: this });
-      })
-      .on("mouseleave", function (e, d) {
-        // Label visibility - use cached lookups (O(1))
-        const ratioLimit = self.params.ratioLimit;
-
-        const label1 = self._bigClusterLabelCache?.get(d.data.data.label);
-        if (label1) {
-          label1.node().style.opacity = label1._cachedRatio >= ratioLimit ? 1 : 0;
-        }
-
-        const label = self._clusterLabelCache?.get(d.data.data.text);
-        if (label) {
-          label.node().style.opacity = label._cachedRatio >= ratioLimit ? 1 : 0;
-        }
-        // Highlight is handled by CSS :hover - no JS needed
-
-        // Leaving a cell — null signals "no hover target" (clickFunc uses "").
-        hoverFunc?.(null);
+      .each(function (d) {
+        if (d.depth === 3) d.cellNode = this;
       });
+  }
+
+  _setupCellInteraction() {
+    const leaves = this.allNodes.filter((d) => d.depth === 3 && d.polygon?.length);
+    if (!leaves.length) return;
+    const visualHoverEnabled = leaves.length <= this.params.hoverVisualLimit;
+
+    const restoreLabels = (d) => {
+      if (!visualHoverEnabled || !d) return;
+      const ratioLimit = this.params.ratioLimit;
+      const groupLabel = this._bigClusterLabelCache?.get(d.data.data.label);
+      const leafLabel = this._clusterLabelCache?.get(d.data.data.text);
+      if (groupLabel) {
+        groupLabel.node().style.opacity = groupLabel._cachedRatio >= ratioLimit ? 1 : 0;
+      }
+      if (leafLabel) {
+        leafLabel.node().style.opacity = leafLabel._cachedRatio >= ratioLimit ? 1 : 0;
+      }
+    };
+
+    const revealLabels = (d) => {
+      if (!visualHoverEnabled) return;
+      const groupLabel = this._bigClusterLabelCache?.get(d.data.data.label);
+      const leafLabel = this._clusterLabelCache?.get(d.data.data.text);
+      if (groupLabel) groupLabel.node().style.opacity = 1;
+      if (leafLabel) leafLabel.node().style.opacity = 1;
+    };
+
+    const setHoveredCell = (next, event) => {
+      if (next === this._hoveredCell) return;
+      restoreLabels(this._hoveredCell);
+      this._hoveredCell = next;
+
+      if (!next) {
+        this.params.hoverFunc?.(null);
+        return;
+      }
+
+      revealLabels(next);
+      this.params.hoverFunc?.({
+        ...next.data.data,
+        depth: next.depth,
+        event,
+        target: next.cellNode
+      });
+    };
+
+    const cellSelection = this.voronoiGroup.selectAll("path.textArea");
+    if (this._hasExplicitHoverFunc) {
+      cellSelection
+        .on("mouseenter", (event, d) => setHoveredCell(d, event))
+        .on("mouseleave", (event, d) => {
+          if (this._hoveredCell === d) setHoveredCell(null, event);
+        });
+    }
+
+    if (this._hasExplicitClickFunc) {
+      cellSelection.on("click", (event, d) => {
+        const area = d3.select(event.currentTarget);
+        const clicked = area.classed("clicked");
+        this.voronoiGroup.select(".clicked").classed("clicked", false);
+        area.classed("clicked", !clicked);
+        this.params.clickFunc(clicked ? "" : { ...d.data, event, d, clickArea: area });
+      });
+    }
+
+    cellSelection.style("cursor", this._hasExplicitClickFunc || this._hasExplicitHoverFunc ? "pointer" : null);
+  }
+
+  _applyHoverVisualMode() {
+    const leafCount = this.allNodes.filter((d) => d.depth === 3).length;
+    this.svg.classed("hover-visual-enabled", leafCount <= this.params.hoverVisualLimit);
   }
 
   _drawCellImages() {

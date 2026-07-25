@@ -7,7 +7,7 @@
 (function (global, factory) {
   typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
   typeof define === 'function' && define.amd ? define(['exports'], factory) :
-  (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.VoronoiTreemapModule = {}));
+  (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.VoronoiBubbleModule = {}));
 })(this, (function (exports) { 'use strict';
 
   function _mergeNamespaces(n, m) {
@@ -25611,7 +25611,7 @@
      */
     render(treemap, round = 10, width = 3, colorVarFunc) {
       const container = this.d3.select(treemap);
-      const cell = container.select('g.cell');
+      const cell = container.select('g.vb-cells');
 
       if (cell.empty()) {
         return;
@@ -25619,18 +25619,18 @@
 
       const chartGroup = this.d3.select(cell.node().parentNode);
 
-      chartGroup.select('.cell-outline').remove();
-      chartGroup.select('.cell-outline2').remove();
+      chartGroup.select('.vb-cell-outline').remove();
+      chartGroup.select('.vb-cell-outline2').remove();
 
       const outlineGroup = chartGroup
-        .insert('g', 'g.cell + *')
-        .attr('class', 'cell-outline')
+        .insert('g', 'g.vb-cells + *')
+        .attr('class', 'vb-cell-outline')
         .attr('pointer-events', 'none');
 
       const outlineGroup2 = chartGroup
-        .insert('g', 'g.cell + *')
-        .attr('class', 'cell-outline')
-        .attr('id', 'outline2')
+        .insert('g', 'g.vb-cells + *')
+        .attr('class', 'vb-cell-outline')
+        .attr('id', 'vb-cell-outline2')
         .attr('pointer-events', 'none');
 
       this._renderDepth2Outlines(cell, outlineGroup2, colorVarFunc);
@@ -25647,7 +25647,7 @@
     _renderDepth2Outlines(cell, outlineGroup, colorVarFunc) {
       const self = this;
 
-      cell.selectAll('.labelArea').each(function (datum) {
+      cell.selectAll('.vb-cell[data-depth="2"]').each(function (datum) {
         const path = self.d3.select(this);
         const polygon = datum.polygon;
 
@@ -25684,7 +25684,7 @@
     _renderDepth1Outlines(cell, outlineGroup, round, width) {
       const self = this;
 
-      cell.selectAll('.metaLabelArea').each(function (datum) {
+      cell.selectAll('.vb-cell[data-depth="1"]').each(function (datum) {
         const polygon = datum.polygon;
 
         if (polygon && polygon.length > 0) {
@@ -25694,7 +25694,7 @@
 
           outlineGroup
             .append('path')
-            .attr('class', 'pebble-outline')
+            .attr('class', 'vb-pebble-outline')
             .attr('d', `${originalPath} ${smoothedPath}`)
             .attr('fill', '#555')
             .attr('stroke', '#555')
@@ -25884,11 +25884,11 @@
       setTimeout(() => {
         const svg = d3.select(treemap);
 
-        svg.selectAll(".label-item, .bigcluster-label-foreign").each(function () {
+        svg.selectAll(".vb-subgroup-label, .vb-subgroup-label-html").each(function () {
           adjustFieldLabel(d3.select(this));
         });
 
-        svg.selectAll(".text-item").each(function () {
+        svg.selectAll(".vb-item-label").each(function () {
           adjustSectorLabel(d3.select(this));
         });
       }, delay);
@@ -26191,7 +26191,7 @@
 
         const parentFieldElement = d3
           .select(treemap)
-          .selectAll(".label-item")
+          .selectAll(".vb-subgroup-label")
           .filter((d) => d?.data?.key === data.parent?.data?.key)
           .nodes()[0];
 
@@ -26233,18 +26233,18 @@
 
         const parentKey = data.parent?.data?.key;
 
-        // Default renderer: SVG text.region
+        // Default renderer: SVG text.vb-group-label
         let parentRegionElement = d3
           .select(treemap)
-          .selectAll(".region")
+          .selectAll(".vb-group-label")
           .filter((d) => d?.data?.key === parentKey)
           .nodes()[0];
 
-        // Custom renderer (renderGroupLabel): foreignObject.region-label-foreign
+        // Custom renderer (renderGroupLabel): foreignObject.vb-group-label-html
         if (!parentRegionElement) {
           parentRegionElement = d3
             .select(treemap)
-            .selectAll(".region-label-foreign")
+            .selectAll(".vb-group-label-html")
             .filter((d) => d?.data?.key === parentKey)
             .nodes()[0];
         }
@@ -26264,7 +26264,7 @@
         const regionData = regionLabel.datum();
         const siblingBoxes = d3
           .select(treemap)
-          .selectAll(".label-item, .bigcluster-label-foreign")
+          .selectAll(".vb-subgroup-label, .vb-subgroup-label-html")
           .filter((d) => d !== data && d?.parent === data.parent)
           .nodes()
           .map((node) => {
@@ -26336,7 +26336,7 @@
    * Transforms flat data into a nested hierarchical structure suitable
    * for d3.hierarchy() and voronoi treemap visualization.
    *
-   * Creates a 3-level hierarchy: root -> metaLabel -> label -> text
+   * Creates a 3-level hierarchy: root -> group -> subgroup -> item
    * Each leaf node contains size values for sizing and references to original data.
    */
 
@@ -26344,43 +26344,43 @@
   /**
    * Convert flat data array into nested hierarchy structure for voronoi treemap
    *
-   * @param {Object[]} data - Array of data objects with metaLabel, label, text, and bubbleSize fields
-   * @param {string} [key1='label'] - Field name for first level grouping (label)
-   * @param {string} [key2='text'] - Field name for second level grouping (text)
+   * @param {Object[]} data - Array of data objects with group, subgroup, item, and size fields
+   * @param {string} [key1='subgroup'] - Field name for first level grouping (subgroup)
+   * @param {string} [key2='item'] - Field name for second level grouping (item)
    * @returns {Object} Nested hierarchy object with key/values structure for d3.hierarchy
    *
    * @example
    * const data = [
-   *   { metaLabel: 'A', label: 'Group1', text: 'Item1', bubbleSize: 10 },
-   *   { metaLabel: 'A', label: 'Group1', text: 'Item2', bubbleSize: 20 }
+   *   { group: 'A', subgroup: 'Group1', item: 'Item1', size: 10 },
+   *   { group: 'A', subgroup: 'Group1', item: 'Item2', size: 20 }
    * ];
    * const nested = nestingForVoronoi(data);
    * const hierarchy = d3.hierarchy(nested, d => d.values).sum(d => d.size);
    */
   function nestingForVoronoi(
     data,
-    key1 = "label",
-    key2 = "text"
+    key1 = "subgroup",
+    key2 = "item"
   ) {
     // 1. Extract only necessary fields
     const simpleData = data.map((d) => ({
       [key1]: d[key1],
       [key2]: d[key2],
-      metaLabel: d.metaLabel,
-      size: d.bubbleSize ?? 1
+      group: d.group,
+      size: d.size ?? 1
     }));
 
-    // 2. 3-level grouping with d3.rollups: metaLabel -> key1 -> key2
+    // 2. 3-level grouping with d3.rollups: group -> key1 -> key2
     const nested = d3.rollups(
       simpleData,
       (d) => d3.sum(d.map((v) => v.size)),
-      (d) => d.metaLabel,
+      (d) => d.group,
       (d) => d[key1],
       (d) => d[key2]
     );
 
     // 3. Helper to convert to dictionary format
-    const makeDictionary = (bc, bcData, metaLabel) => {
+    const makeDictionary = (bc, bcData, group) => {
       return bcData.map((k) => {
         const grouping = {
           [key1]: bc,
@@ -26390,7 +26390,7 @@
 
         const originalData = data.filter(
           (c) =>
-            c.metaLabel === metaLabel &&
+            c.group === group &&
             c[key1] === grouping[key1] &&
             c[key2] === grouping[key2]
         );
@@ -26409,11 +26409,11 @@
     };
 
     // 4. Generate final hierarchical structure
-    const kv = nested.map(([metaLabel, metaLabelData]) => ({
-      key: metaLabel,
-      values: metaLabelData.map(([bc, bcData]) => ({
+    const kv = nested.map(([group, groupData]) => ({
+      key: group,
+      values: groupData.map(([bc, bcData]) => ({
         key: bc,
-        values: makeDictionary(bc, bcData, metaLabel)
+        values: makeDictionary(bc, bcData, group)
       }))
     }));
 
@@ -26426,7 +26426,7 @@
   // Copyright (c) 2025 UXtechLab. All Rights Reserved.
   // Originally created by @taekie. Licensed under BUSL-1.1 by UXtechLab. See LICENSE for details.
   /**
-   * Voronoi Treemap Helpers
+   * VoronoiBubble Helpers
    *
    * Static utility methods for voronoi treemap visualization including:
    * - Font scaling functions for label sizing
@@ -26439,12 +26439,12 @@
 
 
   /**
-   * VoronoiTreemapHelpers - Collection of static helper methods
+   * VoronoiBubbleHelpers - Collection of static helper methods
    *
-   * These methods support the main VoronoiTreemap class with calculations
+   * These methods support the main VoronoiBubble class with calculations
    * for sizing, positioning, coloring, and layout of treemap cells and labels.
    */
-  const VoronoiTreemapHelpers = {
+  const VoronoiBubbleHelpers = {
     // === Font Scale Functions ===
 
     /**
@@ -26457,7 +26457,7 @@
       let ratio = (d.value / hierarchy.value) * 100;
       if (ratio > 30) ratio = 30;
       if (ratio < 0.2) ratio = 0.2;
-      return d3.scaleLog().domain([0.1, 20]).range([0.3, 1.5])(ratio);
+      return d3.scaleLog().domain([0.1, 20]).range([0.3, 1.5])(ratio) * (hierarchy.fontK ?? 1);
     },
 
     /**
@@ -26471,7 +26471,7 @@
       let ratio = (value / hierarchy.value) * 100;
       if (ratio > 30) ratio = 30;
       if (ratio < 0.2) ratio = 0.2;
-      return d3.scaleLog().domain([0.1, 20]).range([0.3, 1.5])(ratio);
+      return d3.scaleLog().domain([0.1, 20]).range([0.3, 1.5])(ratio) * (hierarchy.fontK ?? 1);
     },
 
     /**
@@ -26484,19 +26484,19 @@
       let ratio = (d.value / hierarchy.value) * 100;
       if (ratio > 5) ratio = 5;
       if (ratio < 0.1) ratio = 0.1;
-      return d3.scaleLog().domain([0.1, 8]).range([0.5, 0.8])(ratio);
+      return d3.scaleLog().domain([0.1, 8]).range([0.5, 0.8])(ratio) * (hierarchy.fontK ?? 1);
     },
 
     /**
      * Calculate variable font scale for label positioning
-     * @param {Object} self - VoronoiTreemap instance
+     * @param {Object} self - VoronoiBubble instance
      * @param {Object} d - Current node
      * @returns {number} Calculated offset value
      */
     varFontScale: function (self, d) {
-      const text = d.data.data.text ?? d.data.data.label;
+      const text = d.data.data.item ?? d.data.data.subgroup;
       const [cols, rows] = this.multiline(text, true);
-      return d.data.data.text
+      return d.data.data.item
         ? (this.fontScale2(self.hierarchy, d) * 6 * rows) / 2 + 20
         : (this.fontScale(self.hierarchy, d) * 30 * rows) / 2 + 8;
     },
@@ -26579,7 +26579,7 @@
 
     /**
      * Recursively assign colors to hierarchy nodes based on depth
-     * @param {Object} self - VoronoiTreemap instance
+     * @param {Object} self - VoronoiBubble instance
      * @param {Object} hierarchy - D3 hierarchy node to color
      */
     colorHierarchy: function (self, hierarchy) {
@@ -26604,8 +26604,8 @@
         if (self.params.colorFunc) {
           const originalData = self.data.filter(
             (d) =>
-              d.text === hierarchy.data.key &&
-              d.label === hierarchy.parent.data.key
+              d.item === hierarchy.data.key &&
+              d.subgroup === hierarchy.parent.data.key
           );
           hierarchy.color = self.params.colorFunc(
             originalData,
@@ -26616,7 +26616,7 @@
               siblings: hierarchy.parent.parent.children.map((d) => d.value),
               value: hierarchy.value,
               depth: hierarchy.depth,
-              metaLabel: hierarchy.parent.parent
+              group: hierarchy.parent.parent
             }
           );
         }
@@ -26658,12 +26658,12 @@
     },
 
     /**
-     * Build colorFunc + keyColors from a numeric sentiment field on the data.
+     * Build colorFunc + groupColors from a numeric sentiment field on the data.
      * Leaf cells are colored by their own rows' average score; depth-1 regions by
      * their group average. Used by the `sentiment` render option.
-     * @param {Array} data - normalized data (rows carry metaLabel + the score field)
+     * @param {Array} data - normalized data (rows carry group + the score field)
      * @param {string|Object} opt - field name, or { field, domain: [lo, hi] }
-     * @returns {{ colorFunc: Function, keyColors: Array }}
+     * @returns {{ colorFunc: Function, groupColors: Array }}
      */
     buildSentimentColoring: function (data, opt) {
       const field = typeof opt === "string" ? opt : opt.field;
@@ -26674,13 +26674,13 @@
       const nums = (arr) =>
         (arr || []).map((r) => Number(r[field])).filter((v) => !Number.isNaN(v));
 
-      // depth-1 (metaLabel) group averages → keyColors (region tint)
+      // depth-1 (group) averages → groupColors (region tint)
       const groups = {};
       data.forEach((d) => {
         const v = Number(d[field]);
-        if (!Number.isNaN(v)) (groups[d.metaLabel] = groups[d.metaLabel] || []).push(v);
+        if (!Number.isNaN(v)) (groups[d.group] = groups[d.group] || []).push(v);
       });
-      const keyColors = Object.entries(groups).map(([key, vs]) => ({
+      const groupColors = Object.entries(groups).map(([key, vs]) => ({
         key,
         color: self.sentimentColor(avg(vs), lo, hi),
       }));
@@ -26691,7 +26691,7 @@
         return vs.length ? self.sentimentColor(avg(vs), lo, hi) : def;
       };
 
-      return { colorFunc, keyColors };
+      return { colorFunc, groupColors };
     },
 
     // === Text & Label Functions ===
@@ -26791,7 +26791,7 @@
 
     /**
      * Calculate label height offset based on font size and line count
-     * @param {Object} self - VoronoiTreemap instance
+     * @param {Object} self - VoronoiBubble instance
      * @param {Object} d - Current node
      * @returns {number} Height offset value
      */
@@ -26804,7 +26804,7 @@
 
     /**
      * Calculate optimal label position within parent polygon
-     * @param {Object} self - VoronoiTreemap instance
+     * @param {Object} self - VoronoiBubble instance
      * @param {Object} d - Current node
      * @returns {number[]|undefined} [x, y] position or undefined for depth 1 nodes
      */
@@ -26881,7 +26881,7 @@
 
     /**
      * Estimate label width based on font size and text length
-     * @param {Object} self - VoronoiTreemap instance
+     * @param {Object} self - VoronoiBubble instance
      * @param {Object} d - Current node
      * @param {number} [fontMultiplier=1] - Font size multiplier
      * @returns {number} Estimated width (minimum 60)
@@ -26895,7 +26895,7 @@
 
     /**
      * Estimate label height based on font size and line count
-     * @param {Object} self - VoronoiTreemap instance
+     * @param {Object} self - VoronoiBubble instance
      * @param {Object} d - Current node
      * @param {number} [fontMultiplier=1] - Font size multiplier
      * @returns {number} Estimated height (minimum 40)
@@ -26909,7 +26909,7 @@
 
     /**
      * Create context object for custom label renderers
-     * @param {Object} self - VoronoiTreemap instance
+     * @param {Object} self - VoronoiBubble instance
      * @param {Object} d - Current node
      * @param {number} depth - Depth level (1 or 2)
      * @returns {Object} Context object with label rendering information
@@ -26928,8 +26928,8 @@
         lighterColor: this.getHSLColor(d.color, 0, 0.1, 0.1),
         fontSize:
           depth === 1
-            ? this.fontScale(self.hierarchy, d) * 1.15
-            : this.fontScale(self.hierarchy, d),
+            ? this.fontScale(self.hierarchy, d) * (self.params.groupLabelScale ?? 1.1)
+            : this.fontScale(self.hierarchy, d) * (self.params.subgroupLabelScale ?? 1.05),
         centerX: d.polygon?.site?.x ?? 0,
         centerY: d.polygon?.site?.y ?? 0,
         polygon: d.polygon,
@@ -26998,7 +26998,7 @@
 
     /**
      * Create a custom voronoi treemap algorithm with initial position support
-     * @param {Object} self - VoronoiTreemap instance
+     * @param {Object} self - VoronoiBubble instance
      * @param {boolean} [debug=false] - Enable debug mode
      * @returns {Function} Voronoi treemap algorithm function
      */
@@ -27131,7 +27131,7 @@
 
     /**
      * Create initial position function for voronoi simulation
-     * @param {Object} self - VoronoiTreemap instance
+     * @param {Object} self - VoronoiBubble instance
      * @param {Object[]} initialPositions - Array of initial position objects
      * @param {boolean} [debug=false] - Enable debug mode
      * @returns {Function} Position function for voronoi simulation
@@ -27308,7 +27308,7 @@
    * PopupHelpers
    *
    * Helper functions for creating popup displays when cells are clicked.
-   * These are optional utilities that can be used with the clickFunc option.
+   * These are optional utilities that can be used with the onClick option.
    */
 
   /**
@@ -27322,12 +27322,12 @@
    *
    * @example
    * // In Observable notebook
-   * import { VoronoiTreemap, showVoronoiPopup } from "..."
+   * import { VoronoiBubble, showVoronoiPopup } from "..."
    *
    * chart = {
-   *   const treemap = new VoronoiTreemap();
-   *   return treemap.render(data, {
-   *     clickFunc: showVoronoiPopup
+   *   const bubble = new VoronoiBubble();
+   *   return bubble.render(data, {
+   *     onClick: showVoronoiPopup
    *   });
    * }
    */
@@ -27348,13 +27348,13 @@
       min-width: 200px;
     ">
       <div style="font-size: 1.2em; font-weight: bold; margin-bottom: 0.5em;">
-        ${(data.label ?? data.bigClusterLabel) || 'N/A'}
+        ${data.subgroup || 'N/A'}
       </div>
       <div style="margin-bottom: 0.3em;">
-        <strong>Region:</strong> ${(data.metaLabel ?? data.region) || 'N/A'}
+        <strong>Region:</strong> ${data.group || 'N/A'}
       </div>
       <div>
-        <strong>Size:</strong> ${data.bubbleSize || 'N/A'}
+        <strong>Size:</strong> ${data.size || 'N/A'}
       </div>
     </div>`;
     }
@@ -27374,14 +27374,14 @@
    *
    * @example
    * // In standard HTML/JavaScript
-   * const treemap = new VoronoiTreemap();
-   * const svg = treemap.render(data, {
-   *   clickFunc: createDOMPopup
+   * const bubble = new VoronoiBubble();
+   * const svg = bubble.render(data, {
+   *   onClick: createDOMPopup
    * });
    */
   function createDOMPopup(clickedData) {
     // Remove existing popup
-    const existingPopup = document.querySelector('.voronoi-popup-content');
+    const existingPopup = document.querySelector('.vb-popup-content');
     if (existingPopup) existingPopup.remove();
 
     if (!clickedData) {
@@ -27393,7 +27393,7 @@
 
     // Create popup
     const popup = document.createElement('div');
-    popup.className = 'voronoi-popup-content';
+    popup.className = 'vb-popup-content';
 
     // Position at click location
     const x = event.pageX;
@@ -27403,17 +27403,17 @@
 
     // Create popup content
     const content = document.createElement('div');
-    content.className = 'voronoi-popup-message';
+    content.className = 'vb-popup-message';
     content.innerHTML = `
     <div style="font-size: 1.2em; font-weight: bold; margin-bottom: 0.5em;">
-      ${(data.label ?? data.bigClusterLabel) || 'N/A'}
+      ${data.subgroup || 'N/A'}
     </div>
-    ${data.text ? `<div style="margin-bottom: 0.5em; color: #555;">${data.text}</div>` : ''}
+    ${data.item ? `<div style="margin-bottom: 0.5em; color: #555;">${data.item}</div>` : ''}
     <div style="margin-bottom: 0.3em;">
-      <strong>Region:</strong> ${(data.metaLabel ?? data.region) || 'N/A'}
+      <strong>Region:</strong> ${data.group || 'N/A'}
     </div>
     <div>
-      <strong>Size:</strong> ${data.bubbleSize || 'N/A'}
+      <strong>Size:</strong> ${data.size || 'N/A'}
     </div>
   `;
 
@@ -27452,7 +27452,7 @@
    */
   function getPopupStyles() {
     return `
-.voronoi-popup-content {
+.vb-popup-content {
   position: absolute;
   background: #fffe;
   border: 2px solid #555;
@@ -27463,7 +27463,7 @@
   min-width: 100px;
 }
 
-.voronoi-popup-content::before {
+.vb-popup-content::before {
   content: " ";
   position: absolute;
   top: 100%;
@@ -27474,7 +27474,7 @@
   border-color: #555 transparent transparent transparent;
 }
 
-.voronoi-popup-content::after {
+.vb-popup-content::after {
   content: " ";
   position: absolute;
   top: 100%;
@@ -27486,26 +27486,26 @@
 }
 
 /* Primary popup (showVoronoiPopup from utils): the JS already positions the
-   .voronoi-popup-container at the final top-left, so the inner content must NOT
+   .vb-popup at the final top-left, so the inner content must NOT
    re-apply the legacy centering transform — otherwise it double-offsets up-left.
-   Scoped to .voronoi-popup-container so the legacy popup keeps its transform. */
-.voronoi-popup-container .voronoi-popup-content {
+   Scoped to .vb-popup so the legacy popup keeps its transform. */
+.vb-popup .vb-popup-content {
   position: relative;
   transform: none;
 }
 /* When placed below the cell, flip the arrow to point up from the top edge. */
-.voronoi-popup-container.popup-below .voronoi-popup-content::before {
+.vb-popup.vb-popup-below .vb-popup-content::before {
   top: auto;
   bottom: 100%;
   border-color: transparent transparent #555 transparent;
 }
-.voronoi-popup-container.popup-below .voronoi-popup-content::after {
+.vb-popup.vb-popup-below .vb-popup-content::after {
   top: auto;
   bottom: 100%;
   border-color: transparent transparent #fff transparent;
 }
 
-.voronoi-popup-message {
+.vb-popup-message {
   max-width: 350px;
   min-width: 200px;
   padding: 1em;
@@ -27551,15 +27551,15 @@
     font-style: normal;
 }
 
-body {
+.vb-chart, .vb-popup {
     font-family: "KoddiUD OnGothic", sans-serif;
 }
 
-.caption {
+.vb-caption {
     color: #888;
 }
 
-.region {
+.vb-group-label {
     font-family: "KoddiUDOnGothic-Bold", "KoddiUD OnGothic", sans-serif;
     fill: #fff;
     fill-opacity: 1;
@@ -27568,59 +27568,39 @@ body {
     pointer-events: none;
 }
 
-.area1 {
-    stroke: #464749aa;
-    stroke-width: 2;
-}
-
-.area2 {
-    stroke: #ffffffb0;
-    stroke-width: 0.5;
-}
-
-.area2.highlite {
-    filter: hue-rotate(-5deg) brightness(0.95);
-}
-
-.area2.clicked {
-    stroke: #000;
-    stroke-width: 3px;
-    filter: brightness(0.9);
-}
-
-.metaLabelArea {
+.vb-cell[data-depth="1"] {
     stroke: #464749aa;
     stroke-width: 1.5;
 }
 
-.labelArea {
+.vb-cell[data-depth="2"] {
     stroke: #46474955;
     stroke-width: 0.7;
 }
 
-.textArea {
+.vb-cell[data-depth="3"] {
     stroke: #ffffffb0;
     stroke-width: 0.5;
     cursor: pointer;
 }
 
-svg.hover-visual-enabled .textArea:hover {
+svg.vb-hover-enabled .vb-cell[data-depth="3"]:hover {
     fill: var(--hl, #00000099) !important;
 }
 
-.textArea.clicked {
+.vb-cell[data-depth="3"].vb-clicked {
     stroke-width: 1px;
     filter: hue-rotate(-5deg) brightness(0.9);
 }
 
-.label-item {
+.vb-subgroup-label {
     font-size: 1.2em;
     font-weight: 600;
     fill: #000d;
     pointer-events: none;
 }
 
-.text-item {
+.vb-item-label {
     font-size: 0.8em;
     font-weight: 400;
     fill: #a95b5bdd;
@@ -27628,29 +27608,14 @@ svg.hover-visual-enabled .textArea:hover {
     pointer-events: none;
 }
 
-.percent-label {
+.vb-item-value {
     fill: #c25a50;
     font-size: 12px;
     cursor: default;
     pointer-events: none;
 }
 
-.percent .percent-label {
-    fill: #fff;
-}
-
-.bubblepopup {
-    max-width: 350px;
-    min-width: 200px;
-    padding: 1em;
-    line-height: 1.5;
-    color: #444;
-    text-align: left;
-    max-height: 400px;
-    overflow: scroll;
-}
-
-.voronoi-popup-content {
+.vb-popup-content {
     position: absolute;
     background: #fffe;
     border: 2px solid #555;
@@ -27661,7 +27626,7 @@ svg.hover-visual-enabled .textArea:hover {
     min-width: 100px;
 }
 
-.voronoi-popup-content::before {
+.vb-popup-content::before {
     content: " ";
     position: absolute;
     top: 100%;
@@ -27672,7 +27637,7 @@ svg.hover-visual-enabled .textArea:hover {
     border-color: #555 transparent transparent transparent;
 }
 
-.voronoi-popup-content::after {
+.vb-popup-content::after {
     content: " ";
     position: absolute;
     top: 100%;
@@ -27684,26 +27649,26 @@ svg.hover-visual-enabled .textArea:hover {
 }
 
 /* Primary popup (showVoronoiPopup from utils): the JS already positions the
-   .voronoi-popup-container at the final top-left, so the inner content must NOT
+   .vb-popup at the final top-left, so the inner content must NOT
    re-apply the legacy centering transform — otherwise it double-offsets up-left.
-   Scoped to .voronoi-popup-container so the legacy popup keeps its transform. */
-.voronoi-popup-container .voronoi-popup-content {
+   Scoped to .vb-popup so the legacy popup keeps its transform. */
+.vb-popup .vb-popup-content {
     position: relative;
     transform: none;
 }
 /* When placed below the cell, flip the arrow to point up from the top edge. */
-.voronoi-popup-container.popup-below .voronoi-popup-content::before {
+.vb-popup.vb-popup-below .vb-popup-content::before {
     top: auto;
     bottom: 100%;
     border-color: transparent transparent #555 transparent;
 }
-.voronoi-popup-container.popup-below .voronoi-popup-content::after {
+.vb-popup.vb-popup-below .vb-popup-content::after {
     top: auto;
     bottom: 100%;
     border-color: transparent transparent #fff transparent;
 }
 
-.voronoi-popup-message {
+.vb-popup-message {
     max-width: 350px;
     min-width: 200px;
     padding: 1em;
@@ -27720,7 +27685,7 @@ svg.hover-visual-enabled .textArea:hover {
   // Copyright (c) 2025 UXtechLab. All Rights Reserved.
   // Originally created by @taekie. Licensed under BUSL-1.1 by UXtechLab. See LICENSE for details.
   /**
-   * VoronoiTreemap
+   * VoronoiBubble
    *
    * Main class for creating voronoi treemap visualizations.
    * Renders hierarchical data as organic, pebble-like cells using
@@ -27737,19 +27702,19 @@ svg.hover-visual-enabled .textArea:hover {
 
 
   /**
-   * VoronoiTreemap - Main visualization class
+   * VoronoiBubble - Main visualization class
    *
    * @example
-   * const treemap = new VoronoiTreemap();
-   * const svg = treemap.render(data, {
-   *   width: 800,
-   *   height: 600,
-   *   title: 'My Treemap',
+   * const bubble = new VoronoiBubble();
+   * const svg = bubble.render(data, {
+   *   width: 1200,
+   *   height: 900,
+   *   title: 'My VoronoiBubble',
    *   caption: 'Optional subtitle'
    * });
    * document.body.appendChild(svg);
    */
-  class VoronoiTreemap {
+  class VoronoiBubble {
     constructor() {
       this.margin = { top: 50, right: 50, bottom: 50, left: 50 };
       this.svg = null;
@@ -27767,6 +27732,28 @@ svg.hover-visual-enabled .textArea:hover {
       );
     }
 
+    // === Built-in Palettes ===
+    // 명화의 대표색에서 hue와 상대적 명암·채도 관계를 가져오되, OKLCH에서
+    // L 0.76~0.90 / C 0.05~0.12 밴드로 압축해 이 렌더러의 밝기 파생과
+    // 맞춘 팔레트들. 지배색 가족과 악센트를 교차 배열해 큰 그룹(크기
+    // 내림차순 배정)이 지배색을 받는다.
+    static get PALETTES() {
+      return {
+        // 기본: 107색 파스텔 그라데이션 풀
+        pastel: VoronoiBubble.DEFAULT_COLORS,
+        // 반 고흐, 별이 빛나는 밤 — 파랑 가족 + 금색 악센트
+        starryNight: "#99c3ff,#f1e084,#97b9fb,#fbcf75,#9fcfff,#aacaa0,#b6d7fd,#e0c483,#c4e1fe,#98b2dc".split(","),
+        // 모네, 수련 — 초록 가족 + 분홍·보라 악센트
+        waterLilies: "#94cfa2,#f3b4e2,#8ec1ff,#c3dfbc,#cab2ff,#9bbba1,#fec1d4,#bcd8f5,#afd7aa,#f0dbb7".split(","),
+        // 호쿠사이, 가나가와의 큰 파도 — 쪽빛 + 크림·주황
+        wave: "#82c8ff,#f2dbaf,#8abded,#f5d596,#8cceff,#fabe81,#a4d6ff,#deb58d,#b9dff5,#93b5da".split(","),
+        // 클림트, 키스 — 금색·황토 지배 + 자두·분홍 대비
+        kiss: "#f5d274,#d9c7f0,#bac991,#f8dd7e,#e4b699,#f2cae6,#d8c97b,#d6afd2,#f5c772,#c4ad8e".split(","),
+        // 모네, 인상·해돋이 — 슬레이트 블루 + 주황
+        sunrise: "#99b3d9,#ffad8d,#aac4ea,#ffc097,#86c0ca,#ffd2a2,#bad4f6,#d6b1d2,#9dd4e0,#f3d6ba".split(","),
+      };
+    }
+
     // === Default Options ===
     static get DEFAULT_OPTIONS() {
       return {
@@ -27774,19 +27761,23 @@ svg.hover-visual-enabled .textArea:hover {
         height: 900,
         title: "",
         caption: "",
-        clickFunc: () => {},
-        hoverFunc: null, // (cell|null) => void — cell = { ...row, depth, event, target }; null on leave
+        onClick: () => {},
+        onHover: null, // (cell|null) => void — cell = { ...row, depth, event, target }; null on leave
         hoverVisualLimit: 0, // Enable cell hover highlight / label reveal up to this leaf-cell count
-        labelHoverFunc: null, // (label|null) => void — hover on depth-2 (big cluster) labels; label = { ...row, label, key, depth, event, target }; null on leave. Enables pointer-events on labels (clicks are forwarded to the cell behind).
+        onSubgroupLabelHover: null, // (label|null) => void — hover on depth-2 (subgroup) labels; label = { subgroup, key, depth, event, target } (no original row fields); null on leave. Enables pointer-events on labels (clicks are forwarded to the cell behind).
         colorFunc: null,
         sentiment: null, // 'fieldName' | { field, domain:[lo,hi] } — built-in diverging sentiment colormap
         getCellColors: null, // (cellColors) => void - Callback to receive actual cell colors
         sizeLimit: 1000,
         ratioLimit: 0,
         pieSize: 1,
-        colors: VoronoiTreemap.DEFAULT_COLORS,
+        fontScale: 1, // extra multiplier on top of the automatic canvas-relative font normalization
+        groupLabelScale: 1.1, // depth-1 (group) label multiplier
+        subgroupLabelScale: 1.05, // depth-2 (subgroup) label multiplier
+
+        colors: VoronoiBubble.DEFAULT_COLORS,
         seedRandom: 10,
-        showMetaLabel: false,
+        showGroupLabel: false,
         showPercent: false,
         underLabel: false,
         positions: null,
@@ -27794,7 +27785,7 @@ svg.hover-visual-enabled .textArea:hover {
         debug: false,
         pebbleRound: 25,
         pebbleWidth: 5,
-        keyColors: [],
+        groupColors: [],
         // Custom HTML label renderers — one per depth.
         // (datum, defaultHtml, ctx) => HTML string. ctx.depth is 1 (group) or 2 (subgroup).
         renderGroupLabel: null,    // depth 1 (group)
@@ -27802,9 +27793,61 @@ svg.hover-visual-enabled .textArea:hover {
         adaptiveIterations: true,
         cellImage: null, // (datum) => { url, mode: 'fill'|'fit', opacity: 0~1, colorMode: 'original'|'tint' } | null
         labelMode: 'faded', // 'show' | 'faded' | 'hidden'
-        levels: ['metaLabel', 'label', 'text'], // field names per depth (0, 1, 2)
-        value: 'bubbleSize' // field name for size weight
+        levels: ['group', 'subgroup', 'item'], // field names per depth (0, 1, 2)
+        value: 'size' // field name for size weight
       };
+    }
+
+    // === v1 → v2 rename table (detection only, no behavioral fallback) ===
+    static get V1_RENAMES() {
+      return {
+        options: {
+          maptitle: 'title', mapcaption: 'caption',
+          showRegion: 'showGroupLabel', showMetaLabel: 'showGroupLabel',
+          showLabel: 'labelMode', // v1 boolean → v2 'show' | 'faded' | 'hidden'
+          regionPositions: 'positions', metaLabelPositions: 'positions',
+          keyColors: 'groupColors', regionColors: 'groupColors', metaLabelColors: 'groupColors',
+          clickFunc: 'onClick', hoverFunc: 'onHover', labelHoverFunc: 'onSubgroupLabelHover',
+          renderLabel: 'renderGroupLabel / renderSubgroupLabel',
+          regionLabelRenderer: 'renderGroupLabel', metaLabelRenderer: 'renderGroupLabel',
+          labelRenderer: 'renderSubgroupLabel', bigClusterLabelRenderer: 'renderSubgroupLabel',
+        },
+        // label/text는 여분 필드로 흔해 오탐 위험 → 목록에서 제외.
+        fields: {
+          region: 'group', metaLabel: 'group', bigClusterLabel: 'subgroup',
+          clusterLabel: 'item', bubbleSize: 'size', budget: 'size',
+        },
+      };
+    }
+
+    /**
+     * Detect v1 option/field names and print a single migration notice per render.
+     * Detection only — v1 names are NOT mapped to v2 behavior.
+     * @param {Object} options - Raw user options
+     * @param {Object} [firstRow] - First data row (field-name probe)
+     */
+    _warnV1Names(options, firstRow) {
+      const { options: optMap, fields: fieldMap } = VoronoiBubble.V1_RENAMES;
+      const hits = Object.keys(options)
+        .filter((k) => k in optMap)
+        .map((k) => `옵션 ${k} → ${optMap[k]}`);
+      const defaults = VoronoiBubble.DEFAULT_OPTIONS;
+      const usingDefaultLevels = !options.levels ||
+        options.levels.every((f, i) => f === defaults.levels[i]);
+      const hasV2Field = firstRow &&
+        ['group', 'subgroup', 'item'].some((f) => f in firstRow);
+      if (firstRow && usingDefaultLevels && !hasV2Field) {
+        hits.push(...Object.keys(fieldMap)
+          .filter((k) => k in firstRow)
+          .map((k) => `필드 ${k} → ${fieldMap[k]}`));
+      }
+      if (hits.length) {
+        console.error(
+          `[VoronoiBubble] v1 이름이 감지되었습니다. v2에서는 동작하지 않습니다.\n  ` +
+          hits.join('\n  ') +
+          `\n마이그레이션 가이드: docs/MIGRATION.md`,
+        );
+      }
     }
 
     // === Getter for post-processing modules ===
@@ -27831,100 +27874,68 @@ svg.hover-visual-enabled .textArea:hover {
      * @returns {SVGSVGElement} - Generated SVG element
      */
     render(data, options = {}) {
-      // Legacy option name support
+      // `options = {}` only covers undefined — an explicit `null` must not throw.
+      options = options || {};
+      this._warnV1Names(options, data?.[0]);
       const normalizedOptions = { ...options };
-      if (!('title' in normalizedOptions) && 'maptitle' in normalizedOptions)
-        normalizedOptions.title = normalizedOptions.maptitle;
-      if (!('caption' in normalizedOptions) && 'mapcaption' in normalizedOptions)
-        normalizedOptions.caption = normalizedOptions.mapcaption;
-      if ('showRegion' in normalizedOptions && !('showMetaLabel' in normalizedOptions))
-        normalizedOptions.showMetaLabel = normalizedOptions.showRegion;
-      if (!('positions' in normalizedOptions)) {
-        if ('metaLabelPositions' in normalizedOptions) normalizedOptions.positions = normalizedOptions.metaLabelPositions;
-        else if ('regionPositions' in normalizedOptions) normalizedOptions.positions = normalizedOptions.regionPositions;
-      }
-      if (!('keyColors' in normalizedOptions)) {
-        if ('metaLabelColors' in normalizedOptions) normalizedOptions.keyColors = normalizedOptions.metaLabelColors;
-        else if ('regionColors' in normalizedOptions) normalizedOptions.keyColors = normalizedOptions.regionColors;
-      }
-      // Canonical renderers: renderGroupLabel (depth 1) / renderSubgroupLabel (depth 2)
-      // Legacy aliases → canonical (explicit canonical option always wins)
-      if (!('renderGroupLabel' in normalizedOptions)) {
-        if ('metaLabelRenderer' in normalizedOptions) normalizedOptions.renderGroupLabel = normalizedOptions.metaLabelRenderer;
-        else if ('regionLabelRenderer' in normalizedOptions) normalizedOptions.renderGroupLabel = normalizedOptions.regionLabelRenderer;
-      }
-      if (!('renderSubgroupLabel' in normalizedOptions)) {
-        if ('labelRenderer' in normalizedOptions) normalizedOptions.renderSubgroupLabel = normalizedOptions.labelRenderer;
-        else if ('bigClusterLabelRenderer' in normalizedOptions) normalizedOptions.renderSubgroupLabel = normalizedOptions.bigClusterLabelRenderer;
-      }
-      // Legacy unified renderLabel → fans out to both depth renderers (canonical/legacy options take precedence if set)
-      if (normalizedOptions.renderLabel) {
-        const r = normalizedOptions.renderLabel;
-        if (!normalizedOptions.renderGroupLabel) normalizedOptions.renderGroupLabel = (d, html, ctx) => r(d, html, ctx);
-        if (!normalizedOptions.renderSubgroupLabel) normalizedOptions.renderSubgroupLabel = (d, html, ctx) => r(d, html, ctx);
-      }
-      // Percentages belong to the group label instead of a separately positioned
-      // SVG text node. An explicit group renderer always owns the full label.
-      if (normalizedOptions.showPercent && !normalizedOptions.renderGroupLabel) {
-        normalizedOptions.renderGroupLabel = (d, defaultHtml, ctx) => `
-        <div style="text-align:center; color:#fff; line-height:1.12;">
-          <div style="font-weight:700; font-size:${ctx.fontSize * 0.95}em;
-                      -webkit-text-stroke:3px ${ctx.darkerColor}; paint-order:stroke fill;">
-            ${ctx.key}<br>
-            <small style="font-size:76%; font-weight:600;">${ctx.percentText}</small>
-          </div>
-        </div>`;
+
+      this._hasExplicitOnClick = typeof normalizedOptions.onClick === "function";
+      this._hasExplicitOnHover = typeof normalizedOptions.onHover === "function";
+      this.params = { ...VoronoiBubble.DEFAULT_OPTIONS, ...normalizedOptions };
+
+      // colors 옵션은 배열 또는 내장 팔레트 이름(문자열)을 받는다.
+      if (typeof this.params.colors === "string") {
+        const preset = VoronoiBubble.PALETTES[this.params.colors];
+        if (!preset) {
+          console.error(
+            `[VoronoiBubble] 알 수 없는 팔레트 '${this.params.colors}' — 기본 팔레트를 사용합니다. ` +
+            `사용 가능: ${Object.keys(VoronoiBubble.PALETTES).join(", ")}`,
+          );
+        }
+        this.params.colors = preset || VoronoiBubble.DEFAULT_COLORS;
       }
 
-      this._hasExplicitClickFunc = typeof normalizedOptions.clickFunc === "function";
-      this._hasExplicitHoverFunc = typeof normalizedOptions.hoverFunc === "function";
-      this.params = { ...VoronoiTreemap.DEFAULT_OPTIONS, ...normalizedOptions };
-
-      // Normalize field names: custom levels/value -> standard metaLabel/label/text/bubbleSize
+      // Normalize field names: custom levels/value -> standard group/subgroup/item/size
       const levels = this.params.levels;
       const valueField = this.params.value;
-      const stdLevels = ['metaLabel', 'label', 'text'];
+      const stdLevels = ['group', 'subgroup', 'item'];
       const customLevels = !levels.every((f, i) => f === stdLevels[i]);
-      const customValue = valueField !== 'bubbleSize';
+      const customValue = valueField !== 'size';
 
       this.data = data.map(d => {
         const normalized = { ...d };
-        // Legacy field name aliases
-        if (!('metaLabel' in normalized) && 'region' in normalized) normalized.metaLabel = normalized.region;
-        if (!('label' in normalized) && 'bigClusterLabel' in normalized) normalized.label = normalized.bigClusterLabel;
-        if (!('text' in normalized) && 'clusterLabel' in normalized) normalized.text = normalized.clusterLabel;
         // Custom levels mapping
         if (customLevels) {
-          if (levels[0] !== undefined) normalized.metaLabel = d[levels[0]];
-          if (levels[1] !== undefined) normalized.label = d[levels[1]];
-          if (levels[2] !== undefined) normalized.text = d[levels[2]];
+          if (levels[0] !== undefined) normalized.group = d[levels[0]];
+          if (levels[1] !== undefined) normalized.subgroup = d[levels[1]];
+          if (levels[2] !== undefined) normalized.item = d[levels[2]];
         }
-        if (customValue) normalized.bubbleSize = d[valueField];
+        if (customValue) normalized.size = d[valueField];
         return normalized;
       });
 
       // Built-in sentiment colormap: `sentiment: 'fieldName'` or { field, domain: [lo, hi] }.
-      // Auto-wires colorFunc (leaf cells) + keyColors (regions) from the diverging
+      // Auto-wires colorFunc (leaf cells) + groupColors (regions) from the diverging
       // pastel palette so a rating/sentiment field looks good with no extra code.
-      // Explicit colorFunc / keyColors always take precedence.
+      // Explicit colorFunc / groupColors always take precedence.
       if (this.params.sentiment) {
-        const sc = VoronoiTreemapHelpers.buildSentimentColoring(
+        const sc = VoronoiBubbleHelpers.buildSentimentColoring(
           this.data,
           this.params.sentiment
         );
         if (!this.params.colorFunc) this.params.colorFunc = sc.colorFunc;
-        if (!this.params.keyColors || this.params.keyColors.length === 0)
-          this.params.keyColors = sc.keyColors;
+        if (!this.params.groupColors || this.params.groupColors.length === 0)
+          this.params.groupColors = sc.groupColors;
       }
 
-      // When colorFunc drives leaf colors but the user gave no palette/keyColors,
-      // default the depth-1 (metaLabel) palette to a single neutral color so region
+      // When colorFunc drives leaf colors but the user gave no palette/groupColors,
+      // default the depth-1 (group) palette to a single neutral color so region
       // outlines and labels don't show clashing rainbow colors. Override with
-      // `colors` / `keyColors` to restore per-region coloring.
+      // `colors` / `groupColors` to restore per-region coloring.
       if (
         this.params.colorFunc &&
         !("colors" in normalizedOptions) &&
-        (!this.params.keyColors || this.params.keyColors.length === 0)
+        (!this.params.groupColors || this.params.groupColors.length === 0)
       ) {
         this.params.colors = ["#444"];
       }
@@ -27970,12 +27981,13 @@ svg.hover-visual-enabled .textArea:hover {
       // the bottom margin stay the same size — everything just shifts down, so
       // the title gets headroom and nothing is clipped at the bottom.
       const hasTitle = !!(this.params.title && String(this.params.title).trim());
-      const titleSpace = hasTitle ? 30 : 0;
+      const titleSpace = hasTitle ? 48 : 0;
       this.margin.top = 50 + titleSpace;
       const vbHeight = this.params.height + titleSpace;
 
       this.svg = d3
         .create("svg")
+        .attr("class", "vb-chart")
         .attr("viewBox", `0 0 ${this.params.width} ${vbHeight}`)
         .attr("preserveAspectRatio", "xMidYMid meet")
         .style("width", "100%")
@@ -28001,11 +28013,18 @@ svg.hover-visual-enabled .textArea:hover {
       // Use external nestingForVoronoi function
       const nested = nestingForVoronoi(
         this.data,
-        "label",
-        "text"
+        "subgroup",
+        "item"
       );
 
       this.hierarchy = d3.hierarchy(nested, (d) => d.values).sum((d) => d.size);
+
+      // Font scales are tuned for the 1200x900 reference canvas. Carry a
+      // canvas-relative factor on the hierarchy so every font helper shrinks
+      // text together with the cells on smaller/larger canvases.
+      this.hierarchy.fontK =
+        Math.sqrt((this.params.width * this.params.height) / (1200 * 900)) *
+        (this.params.fontScale ?? 1);
 
       this.totalValue = this.hierarchy.value;
     }
@@ -28017,40 +28036,64 @@ svg.hover-visual-enabled .textArea:hover {
         .attr("transform", `translate(${this.margin.left},${this.margin.top})`);
 
       // inner wrapper: applies dynamic zoom transform
-      this.zoomGroup = this.chartGroup.append("g").attr("class", "zoom");
+      this.zoomGroup = this.chartGroup.append("g").attr("class", "vb-zoom-layer");
 
-      this.voronoiGroup = this.zoomGroup.append("g").attr("class", "cell");
-      this.labelsGroup = this.zoomGroup.append("g").attr("class", "labels");
-      this.popLabelsGroup = this.zoomGroup.append("g").attr("class", "pop");
-      this.bigLabelsGroup = this.zoomGroup.append("g").attr("class", "label1");
-      this.percentLabelsGroup = this.zoomGroup
-        .append("g")
-        .attr("class", "percent");
+      this.voronoiGroup = this.zoomGroup.append("g").attr("class", "vb-cells");
+      this.labelsGroup = this.zoomGroup.append("g").attr("class", "vb-item-labels");
+      this.popLabelsGroup = this.zoomGroup.append("g").attr("class", "vb-item-values");
+      this.bigLabelsGroup = this.zoomGroup.append("g").attr("class", "vb-subgroup-labels");
       this.regionLabelsGroup = this.zoomGroup
         .append("g")
-        .attr("class", "region");
+        .attr("class", "vb-group-labels");
     }
 
     _drawTitleAndCaption() {
-      this.svg
+      const title = this.svg
         .append("g")
         .append("text")
-        .attr("class", "title")
+        .attr("class", "vb-title")
         .attr("text-anchor", "middle")
         .attr("font-size", "28")
         .attr("font-weight", "600")
         .attr(
           "transform",
           `translate(${this.margin.left + this.width / 2},${
-          this.margin.top - 22
+          this.margin.top - 40
         })`
         )
         .html(this.params.title);
 
+      // 제목이 버블 영역 폭의 90%를 넘으면 말줄임(…) 처리.
+      // render() 시점의 SVG는 아직 DOM 밖이라(getComputedTextLength=0),
+      // 측정하는 동안만 숨김 상태로 body에 임시 부착한다.
+      const titleNode = title.node();
+      if (titleNode?.getComputedTextLength && typeof document !== "undefined") {
+        const svgNode = this.svg.node();
+        const detached = !svgNode.isConnected;
+        if (detached && document.body) {
+          svgNode.style.position = "absolute";
+          svgNode.style.visibility = "hidden";
+          document.body.appendChild(svgNode);
+        }
+        const maxW = this.width * 0.9;
+        if (titleNode.getComputedTextLength() > maxW) {
+          let text = titleNode.textContent;
+          while (text.length > 1 && titleNode.getComputedTextLength() > maxW) {
+            text = text.slice(0, -1);
+            titleNode.textContent = text + "…";
+          }
+        }
+        if (detached && svgNode.isConnected) {
+          svgNode.remove();
+          svgNode.style.position = "";
+          svgNode.style.visibility = "";
+        }
+      }
+
       this.svg
         .append("g")
         .append("text")
-        .attr("class", "caption")
+        .attr("class", "vb-caption")
         .attr("text-anchor", "middle")
         .attr("font-size", "15")
         .attr("font-weight", "400")
@@ -28065,20 +28108,20 @@ svg.hover-visual-enabled .textArea:hover {
     }
 
     _createRegionColorScale() {
-      // Calculate total size (bubbleSize) per metaLabel
+      // Calculate total size per group
       const regionSizes = d3.rollup(
         this.data,
-        (v) => d3.sum(v, (d) => parseFloat(d.bubbleSize) || 1),
-        (d) => d.metaLabel
+        (v) => d3.sum(v, (d) => parseFloat(d.size) || 1),
+        (d) => d.group
       );
 
-      // Sort metaLabels by size (descending - largest first)
+      // Sort groups by size (descending - largest first)
       const sortedRegions = Array.from(regionSizes.entries())
         .sort((a, b) => b[1] - a[1]) // b[1] - a[1]: descending order
-        .map((d) => d[0]); // Extract metaLabel names
+        .map((d) => d[0]); // Extract group names
 
-      const { keyColors, colors: paletteColors } = this.params;
-      const customColorMap = new Map(keyColors.map((d) => [d.key, d.color]));
+      const { groupColors, colors: paletteColors } = this.params;
+      const customColorMap = new Map(groupColors.map((d) => [d.key, d.color]));
 
       let colorMapping = {};
 
@@ -28123,7 +28166,7 @@ svg.hover-visual-enabled .textArea:hover {
           ? this._normalizePositions(this.params.positions)
           : [];
         const seed = d3.seedrandom(this.params.seedRandom);
-        VoronoiTreemapHelpers.createCustomVoronoiAlgorithm(
+        VoronoiBubbleHelpers.createCustomVoronoiAlgorithm(
           this,
           this.params.debug
         )
@@ -28138,7 +28181,7 @@ svg.hover-visual-enabled .textArea:hover {
         d3.voronoiTreemap().prng(seed).clip(ellipse)(this.hierarchy);
       }
 
-      VoronoiTreemapHelpers.colorHierarchy(this, this.hierarchy);
+      VoronoiBubbleHelpers.colorHierarchy(this, this.hierarchy);
 
       this.allNodes = this.hierarchy
         .descendants()
@@ -28154,7 +28197,7 @@ svg.hover-visual-enabled .textArea:hover {
 
     /**
      * Extract cell colors from hierarchy nodes
-     * @returns {Array} Array of {metaLabel, metaColor, label, color} objects sorted by metaLabel size
+     * @returns {Array} Array of {group, groupColor, subgroup, color} objects sorted by group size
      * @private
      */
     _extractCellColors() {
@@ -28172,33 +28215,31 @@ svg.hover-visual-enabled .textArea:hover {
       });
 
       this.hierarchy.descendants().forEach(node => {
-        // Process depth 2 nodes (label level)
+        // Process depth 2 nodes (subgroup level)
         if (node.depth === 2) {
-          // depth 1 = metaLabel (parent), depth 2 = label (current node)
+          // depth 1 = group (parent), depth 2 = subgroup (current node)
           const depth1Node = node.parent; // depth 1 ancestor
 
           cellColors.push({
-            metaLabel: depth1Node?.data?.key,   // new
-            bigLabel: depth1Node?.data?.key,     // legacy
-            metaColor: depth1Node?.color,        // new
-            bigColor: depth1Node?.color,         // legacy
-            label: node.data.key,
+            group: depth1Node?.data?.key,
+            groupColor: depth1Node?.color,
+            subgroup: node.data.key,
             color: node.color
           });
         }
       });
 
-      // Sort by metaLabel size (largest first, following colormap order)
+      // Sort by group size (largest first, following colormap order)
       cellColors.sort((a, b) => {
-        const orderA = regionOrder.get(a.metaLabel) ?? Infinity;
-        const orderB = regionOrder.get(b.metaLabel) ?? Infinity;
+        const orderA = regionOrder.get(a.group) ?? Infinity;
+        const orderB = regionOrder.get(b.group) ?? Infinity;
         return orderA - orderB;
       });
 
       return cellColors;
     }
 
-    _normalizePositions(regionPositions) {
+    _normalizePositions(positions) {
       const result = [];
       const hierarchyNodes = this.hierarchy.descendants();
 
@@ -28225,7 +28266,7 @@ svg.hover-visual-enabled .textArea:hover {
       };
 
       // depth 1: Normalize based on overall extent
-      const depth1 = regionPositions.filter((p) => p.depth === 1);
+      const depth1 = positions.filter((p) => p.depth === 1);
       if (depth1.length > 0) {
         const xExtent = d3.extent(depth1, (p) => p.x);
         const yExtent = d3.extent(depth1, (p) => p.y);
@@ -28252,7 +28293,7 @@ svg.hover-visual-enabled .textArea:hover {
 
       // depth 2, 3: Find parent in hierarchy and normalize among siblings
       [2, 3].forEach((depth) => {
-        const depthPositions = regionPositions.filter((p) => p.depth === depth);
+        const depthPositions = positions.filter((p) => p.depth === depth);
         if (depthPositions.length === 0) return;
 
         // Find parent groups for nodes at this depth
@@ -28260,7 +28301,7 @@ svg.hover-visual-enabled .textArea:hover {
         const byParent = d3.group(nodesAtDepth, (n) => n.parent?.data?.key);
 
         byParent.forEach((siblings, parentKey) => {
-          // Find regionPositions for these siblings
+          // Find positions for these siblings
           const siblingKeys = new Set(siblings.map((s) => s.data.key));
           const siblingPositions = depthPositions.filter((p) =>
             siblingKeys.has(p.key)
@@ -28310,10 +28351,9 @@ svg.hover-visual-enabled .textArea:hover {
           const c = base ? d3.color(base) : null;
           return c ? c.darker(0.35).formatHex() : "#00000099";
         })
-        .attr("class", (d) => {
-          const areaClass = d.depth === 1 ? "metaLabelArea" : d.depth === 2 ? "labelArea" : d.depth === 3 ? "textArea" : "rootArea";
-          return `${areaClass} area-${d.id}`;
-        })
+        .attr("class", "vb-cell")
+        .attr("data-depth", (d) => d.depth)
+        .attr("data-id", (d) => d.id)
         .style("fill-opacity", (d) => (d.depth === 3 ? 1 : 0))
         .attr("pointer-events", (d) => (d.depth === 3 ? "all" : "none"))
         .each(function (d) {
@@ -28329,8 +28369,8 @@ svg.hover-visual-enabled .textArea:hover {
       const restoreLabels = (d) => {
         if (!visualHoverEnabled || !d) return;
         const ratioLimit = this.params.ratioLimit;
-        const groupLabel = this._bigClusterLabelCache?.get(d.data.data.label);
-        const leafLabel = this._clusterLabelCache?.get(d.data.data.text);
+        const groupLabel = this._subgroupLabelCache?.get(d.data.data.subgroup);
+        const leafLabel = this._itemLabelCache?.get(d.data.data.item);
         if (groupLabel) {
           groupLabel.node().style.opacity = groupLabel._cachedRatio >= ratioLimit ? 1 : 0;
         }
@@ -28341,8 +28381,8 @@ svg.hover-visual-enabled .textArea:hover {
 
       const revealLabels = (d) => {
         if (!visualHoverEnabled) return;
-        const groupLabel = this._bigClusterLabelCache?.get(d.data.data.label);
-        const leafLabel = this._clusterLabelCache?.get(d.data.data.text);
+        const groupLabel = this._subgroupLabelCache?.get(d.data.data.subgroup);
+        const leafLabel = this._itemLabelCache?.get(d.data.data.item);
         if (groupLabel) groupLabel.node().style.opacity = 1;
         if (leafLabel) leafLabel.node().style.opacity = 1;
       };
@@ -28353,12 +28393,12 @@ svg.hover-visual-enabled .textArea:hover {
         this._hoveredCell = next;
 
         if (!next) {
-          this.params.hoverFunc?.(null);
+          this.params.onHover?.(null);
           return;
         }
 
         revealLabels(next);
-        this.params.hoverFunc?.({
+        this.params.onHover?.({
           ...next.data.data,
           depth: next.depth,
           event,
@@ -28366,8 +28406,8 @@ svg.hover-visual-enabled .textArea:hover {
         });
       };
 
-      const cellSelection = this.voronoiGroup.selectAll("path.textArea");
-      if (this._hasExplicitHoverFunc) {
+      const cellSelection = this.voronoiGroup.selectAll('path.vb-cell[data-depth="3"]');
+      if (this._hasExplicitOnHover) {
         cellSelection
           .on("mouseenter", (event, d) => setHoveredCell(d, event))
           .on("mouseleave", (event, d) => {
@@ -28375,22 +28415,22 @@ svg.hover-visual-enabled .textArea:hover {
           });
       }
 
-      if (this._hasExplicitClickFunc) {
+      if (this._hasExplicitOnClick) {
         cellSelection.on("click", (event, d) => {
           const area = d3.select(event.currentTarget);
-          const clicked = area.classed("clicked");
-          this.voronoiGroup.select(".clicked").classed("clicked", false);
-          area.classed("clicked", !clicked);
-          this.params.clickFunc(clicked ? "" : { ...d.data, event, d, clickArea: area });
+          const clicked = area.classed("vb-clicked");
+          this.voronoiGroup.select(".vb-clicked").classed("vb-clicked", false);
+          area.classed("vb-clicked", !clicked);
+          this.params.onClick(clicked ? "" : { ...d.data, event, d, clickArea: area });
         });
       }
 
-      cellSelection.style("cursor", this._hasExplicitClickFunc || this._hasExplicitHoverFunc ? "pointer" : null);
+      cellSelection.style("cursor", this._hasExplicitOnClick || this._hasExplicitOnHover ? "pointer" : null);
     }
 
     _applyHoverVisualMode() {
       const leafCount = this.allNodes.filter((d) => d.depth === 3).length;
-      this.svg.classed("hover-visual-enabled", leafCount <= this.params.hoverVisualLimit);
+      this.svg.classed("vb-hover-enabled", leafCount <= this.params.hoverVisualLimit);
     }
 
     _drawCellImages() {
@@ -28408,7 +28448,7 @@ svg.hover-visual-enabled .textArea:hover {
         if (!imgOpts || !imgOpts.url) return;
 
         const { url, mode = "fill", opacity = 1, colorMode = "original" } = imgOpts;
-        const id = `cell-img-${d.id}`.replace(/[^a-zA-Z0-9-_]/g, "_");
+        const id = `vb-cell-img-${d.id}`.replace(/[^a-zA-Z0-9-_]/g, "_");
         const polygon = d.polygon;
         const xs = polygon.map((p) => p[0]);
         const ys = polygon.map((p) => p[1]);
@@ -28458,39 +28498,38 @@ svg.hover-visual-enabled .textArea:hover {
     _drawLabels() {
       this._drawRegionLabels();
       this._drawBigClusterLabels();
-      this._drawPercentLabels();
       this._drawSectorLabels();
       this._drawPopLabels();
     }
 
     _buildLabelCache() {
       // Build lookup maps for fast label access during hover events
-      this._bigClusterLabelCache = new Map();
-      this._clusterLabelCache = new Map();
+      this._subgroupLabelCache = new Map();
+      this._itemLabelCache = new Map();
 
-      // Cache bigCluster labels with their ratio values
-      this.bigLabelsGroup.selectAll("[data-bigCluster]").nodes().forEach((node) => {
-        const key = node.getAttribute("data-bigCluster");
+      // Cache subgroup labels with their ratio values
+      this.bigLabelsGroup.selectAll("[data-subgroup]").nodes().forEach((node) => {
+        const key = node.getAttribute("data-subgroup");
         if (key) {
           const selection = d3.select(node);
           selection._cachedRatio = parseFloat(node.getAttribute("data-ratio")) || 0;
-          this._bigClusterLabelCache.set(key, selection);
+          this._subgroupLabelCache.set(key, selection);
         }
       });
 
-      // Cache cluster labels with their ratio values
-      this.labelsGroup.selectAll("[data-cluster]").nodes().forEach((node) => {
-        const key = node.getAttribute("data-cluster");
+      // Cache item labels with their ratio values
+      this.labelsGroup.selectAll("[data-item]").nodes().forEach((node) => {
+        const key = node.getAttribute("data-item");
         if (key) {
           const selection = d3.select(node);
           selection._cachedRatio = parseFloat(node.getAttribute("data-ratio")) || 0;
-          this._clusterLabelCache.set(key, selection);
+          this._itemLabelCache.set(key, selection);
         }
       });
     }
 
     _drawRegionLabels() {
-      const { showMetaLabel, renderGroupLabel } = this.params;
+      const { showGroupLabel, renderGroupLabel } = this.params;
 
       const regionNodes = this.allNodes.filter((d) => d.depth === 1);
 
@@ -28501,19 +28540,19 @@ svg.hover-visual-enabled .textArea:hover {
           .data(regionNodes)
           .enter()
           .append("foreignObject")
-          .attr("class", "region-label-foreign")
-          .attr("data-region", (d) => d.data.key)
+          .attr("class", "vb-group-label-html")
+          .attr("data-group", (d) => d.data.key)
           .attr("width", (d) => {
-            const bounds = VoronoiTreemapHelpers.getPolygonBounds(d.polygon);
+            const bounds = VoronoiBubbleHelpers.getPolygonBounds(d.polygon);
             const width = bounds.maxX - bounds.minX;
             return width * 0.6;
           })
           .attr("height", (d) =>
-            VoronoiTreemapHelpers.estimateLabelHeight(this, d, 1.3)
+            VoronoiBubbleHelpers.estimateLabelHeight(this, d, 1.3)
           )
           .attr("x", (d) => {
             if (!d.polygon?.site) return 0;
-            const bounds = VoronoiTreemapHelpers.getPolygonBounds(d.polygon);
+            const bounds = VoronoiBubbleHelpers.getPolygonBounds(d.polygon);
             const width = bounds.maxX - bounds.minX;
             return d.polygon.site.x - (width * 0.6) / 2;
           })
@@ -28522,11 +28561,11 @@ svg.hover-visual-enabled .textArea:hover {
             (d) => {
               if (!d.polygon?.site) return 0;
               return d.polygon.site.y -
-                VoronoiTreemapHelpers.estimateLabelHeight(this, d, 1.3) * 0.4 +
-                VoronoiTreemapHelpers.getLabelHeightOffset(this, d);
+                VoronoiBubbleHelpers.estimateLabelHeight(this, d, 1.3) * 0.4 +
+                VoronoiBubbleHelpers.getLabelHeightOffset(this, d);
             }
           )
-          .style("opacity", showMetaLabel || this.params.showPercent ? 1 : 0)
+          .style("opacity", showGroupLabel || this.params.showPercent ? 1 : 0)
           .style("pointer-events", "none")
           .style("overflow", "visible")
           .append("xhtml:div")
@@ -28536,8 +28575,8 @@ svg.hover-visual-enabled .textArea:hover {
           .style("align-items", "center")
           .style("justify-content", "center")
           .html((d) => {
-            const defaultHtml = VoronoiTreemapHelpers.multiline(d.data.key);
-            const context = VoronoiTreemapHelpers.createLabelContext(this, d, 1);
+            const defaultHtml = VoronoiBubbleHelpers.multiline(d.data.key);
+            const context = VoronoiBubbleHelpers.createLabelContext(this, d, 1);
             return renderGroupLabel(d, defaultHtml, context);
           });
       } else {
@@ -28547,19 +28586,19 @@ svg.hover-visual-enabled .textArea:hover {
           .data(regionNodes)
           .enter()
           .append("text")
-          .attr("class", "region")
+          .attr("class", "vb-group-label")
           .attr("text-anchor", "start")
           .attr("ratio", (d) => d.value / d.parent.value)
           .style(
             "font-size",
             (d) =>
-              VoronoiTreemapHelpers.fontScale(this.hierarchy, d) * 1.15 + "em"
+              VoronoiBubbleHelpers.fontScale(this.hierarchy, d) * this.params.groupLabelScale + "em"
           )
-          .style("fill-opacity", showMetaLabel ? 1 : 0)
-          .style("stroke-opacity", showMetaLabel ? 0.85 : 0)
+          .style("fill-opacity", showGroupLabel || this.params.showPercent ? 1 : 0)
+          .style("stroke-opacity", showGroupLabel || this.params.showPercent ? 0.85 : 0)
           .style(
             "stroke",
-            (d) => `${VoronoiTreemapHelpers.getHSLColor(d.color, 0, -0.05, -0.2)}`
+            (d) => `${VoronoiBubbleHelpers.getHSLColor(d.color, 0, -0.05, -0.2)}`
           )
           .attr("paint-order", "stroke")
           .attr(
@@ -28569,11 +28608,21 @@ svg.hover-visual-enabled .textArea:hover {
               return `translate(${[
               d.polygon.site.x,
               d.polygon.site.y +
-                VoronoiTreemapHelpers.getLabelHeightOffset(this, d)
+                VoronoiBubbleHelpers.getLabelHeightOffset(this, d)
             ]})`;
             }
           )
-          .html((d) => VoronoiTreemapHelpers.multiline(d.data.key));
+          .html((d) => {
+            const label = VoronoiBubbleHelpers.multiline(d.data.key);
+            if (!this.params.showPercent) return label;
+            // Percent goes on an extra line inside the same <text>, so it always
+            // shares the label's font. Positioned one line below the last row.
+            const [, lines] = VoronoiBubbleHelpers.multiline(d.data.key, true);
+            const pct = d3.format(".0%")(d.value / this.totalValue);
+            return label +
+              `<tspan x="0" y="${-lines / 2 + lines + 1.1}em" text-anchor="middle">` +
+              `<tspan font-size="76%">${pct}</tspan></tspan>`;
+          });
       }
     }
 
@@ -28589,22 +28638,22 @@ svg.hover-visual-enabled .textArea:hover {
           .data(bigClusterNodes)
           .enter()
           .append("foreignObject")
-          .attr("class", "bigcluster-label-foreign")
-          .attr("data-bigCluster", (d) => d.data.key)
+          .attr("class", "vb-subgroup-label-html")
+          .attr("data-subgroup", (d) => d.data.key)
           .attr("data-value", (d) => d.value)
           .attr("data-ratio", (d) => d.value / this.totalValue)
 
           .attr("width", (d) => {
-            const bounds = VoronoiTreemapHelpers.getPolygonBounds(d.polygon);
+            const bounds = VoronoiBubbleHelpers.getPolygonBounds(d.polygon);
             const width = bounds.maxX - bounds.minX;
             return width * 0.6;
           })
           .attr("height", (d) =>
-            VoronoiTreemapHelpers.estimateLabelHeight(this, d, 1.2)
+            VoronoiBubbleHelpers.estimateLabelHeight(this, d, 1.2)
           )
           .attr("x", (d) => {
             if (!d.polygon?.site) return 0;
-            const bounds = VoronoiTreemapHelpers.getPolygonBounds(d.polygon);
+            const bounds = VoronoiBubbleHelpers.getPolygonBounds(d.polygon);
             const width = bounds.maxX - bounds.minX;
             return d.polygon.site.x - (width * 0.6) / 2;
           })
@@ -28613,8 +28662,8 @@ svg.hover-visual-enabled .textArea:hover {
             (d) => {
               if (!d.polygon?.site) return 0;
               return d.polygon.site.y -
-                VoronoiTreemapHelpers.estimateLabelHeight(this, d, 1.2) * 0.45 +
-                VoronoiTreemapHelpers.getLabelHeightOffset(this, d);
+                VoronoiBubbleHelpers.estimateLabelHeight(this, d, 1.2) * 0.45 +
+                VoronoiBubbleHelpers.getLabelHeightOffset(this, d);
             }
           )
           .attr("opacity", (d) =>
@@ -28629,8 +28678,8 @@ svg.hover-visual-enabled .textArea:hover {
           .style("align-items", "center")
           .style("justify-content", "center")
           .html((d) => {
-            const defaultHtml = VoronoiTreemapHelpers.multiline(d.data.key);
-            const context = VoronoiTreemapHelpers.createLabelContext(this, d, 2);
+            const defaultHtml = VoronoiBubbleHelpers.multiline(d.data.key);
+            const context = VoronoiBubbleHelpers.createLabelContext(this, d, 2);
             return renderSubgroupLabel(d, defaultHtml, context);
           });
       } else {
@@ -28640,18 +28689,18 @@ svg.hover-visual-enabled .textArea:hover {
           .data(bigClusterNodes)
           .enter()
           .append("text")
-          .attr("class", "label-item")
-          .attr("data-bigCluster", (d) => d.data.key)
+          .attr("class", "vb-subgroup-label")
+          .attr("data-subgroup", (d) => d.data.key)
           .attr("text-anchor", "start")
           .attr("data-value", (d) => d.value)
           .attr("data-ratio", (d) => d.value / this.totalValue)
           .style(
             "font-size",
-            (d) => VoronoiTreemapHelpers.fontScale(this.hierarchy, d) + "em"
+            (d) => VoronoiBubbleHelpers.fontScale(this.hierarchy, d) * this.params.subgroupLabelScale + "em"
           )
           .attr("paint-order", "stroke")
           .style("fill", (d) =>
-            VoronoiTreemapHelpers.colorVar2(d.parent.color, 0, 0.2, -0.2)
+            VoronoiBubbleHelpers.colorVar2(d.parent.color, 0, 0.2, -0.2)
           )
           .attr(
             "transform",
@@ -28660,37 +28709,37 @@ svg.hover-visual-enabled .textArea:hover {
               return `translate(${[
               d.polygon.site.x,
               d.polygon.site.y +
-                VoronoiTreemapHelpers.getLabelHeightOffset(this, d)
+                VoronoiBubbleHelpers.getLabelHeightOffset(this, d)
             ]})`;
             }
           )
-          .html((d) => VoronoiTreemapHelpers.multiline(d.data.key))
+          .html((d) => VoronoiBubbleHelpers.multiline(d.data.key))
           .attr("opacity", (d) =>
             d.value / this.totalValue >= ratioLimit ? 1 : 0
           );
       }
 
-      // labelHoverFunc: when set, depth-2 (big cluster) labels receive hover
+      // onSubgroupLabelHover: when set, depth-2 (subgroup) labels receive hover
       // events so a consumer can show a description. Labels are normally
       // pointer-events:none so clicks fall through to the cell behind them; we
       // preserve that by forwarding label clicks to the underlying cell (the
       // label itself only reacts to hover).
-      const { labelHoverFunc } = this.params;
-      if (labelHoverFunc) {
+      const { onSubgroupLabelHover } = this.params;
+      if (onSubgroupLabelHover) {
         const payloadOf = (d, e, node) => ({
           ...(d.data?.data || {}),
-          label: d.data.key,
+          subgroup: d.data.key,
           key: d.data.key,
           depth: d.depth,
           event: e,
           target: node,
         });
         this.bigLabelsGroup
-          .selectAll("foreignObject.bigcluster-label-foreign, text.label-item")
+          .selectAll("foreignObject.vb-subgroup-label-html, text.vb-subgroup-label")
           .style("pointer-events", "all")
           .style("cursor", "default")
-          .on("mouseenter", function (e, d) { labelHoverFunc(payloadOf(d, e, this)); })
-          .on("mouseleave", function () { labelHoverFunc(null); })
+          .on("mouseenter", function (e, d) { onSubgroupLabelHover(payloadOf(d, e, this)); })
+          .on("mouseleave", function () { onSubgroupLabelHover(null); })
           .on("click", function (e) {
             // Hover-only label: forward the click to the cell behind it.
             this.style.pointerEvents = "none";
@@ -28706,12 +28755,6 @@ svg.hover-visual-enabled .textArea:hover {
       }
     }
 
-    _drawPercentLabels() {
-      // showPercent is rendered as part of the depth-1 group label. Keeping the
-      // method preserves the drawing pipeline without creating collision-prone
-      // standalone percentage nodes.
-    }
-
     _drawSectorLabels() {
       const { underLabel, ratioLimit } = this.params;
 
@@ -28720,10 +28763,11 @@ svg.hover-visual-enabled .textArea:hover {
         .data(this.allNodes.filter((d) => d.depth === 3))
         .enter()
         .append("text")
-        .attr("class", (d) => `text-item label-${d.id}`)
-        .attr("data-cluster", (d) => d.data.key)
+        .attr("class", "vb-item-label")
+        .attr("data-id", (d) => d.id)
+        .attr("data-item", (d) => d.data.key)
         .attr("data-full-text", (d) => d.data.key)
-        .attr("data-font-em", (d) => VoronoiTreemapHelpers.fontScale2(this.hierarchy, d))
+        .attr("data-font-em", (d) => VoronoiBubbleHelpers.fontScale2(this.hierarchy, d))
         .attr("data-cell-w", (d) => {
           const xs = d.polygon.map(p => p[0]);
           return Math.max(...xs) - Math.min(...xs);
@@ -28737,10 +28781,10 @@ svg.hover-visual-enabled .textArea:hover {
         .attr("text-anchor", "start")
         .style(
           "font-size",
-          (d) => VoronoiTreemapHelpers.fontScale2(this.hierarchy, d) + "em"
+          (d) => VoronoiBubbleHelpers.fontScale2(this.hierarchy, d) + "em"
         )
         .style("fill", (d) =>
-          VoronoiTreemapHelpers.getHSLColor(d.color, 0, -0.1, -0.3)
+          VoronoiBubbleHelpers.getHSLColor(d.color, 0, -0.1, -0.3)
         )
         .attr("transform", (d) => {
           if (!d.polygon?.site) return `translate(0,0)`;
@@ -28748,23 +28792,23 @@ svg.hover-visual-enabled .textArea:hover {
             ? `translate(${[
               d.polygon.site.x,
               d.polygon.site.y +
-                VoronoiTreemapHelpers.fontScale1(
+                VoronoiBubbleHelpers.fontScale1(
                   this.hierarchy,
-                  d.data.data.label,
+                  d.data.data.subgroup,
                   d.parent.value
                 ) *
                   8 *
-                  (VoronoiTreemapHelpers.multiline(
-                    d.data.data.label,
+                  (VoronoiBubbleHelpers.multiline(
+                    d.data.data.subgroup,
                     true
                   )[1] +
                     0.5)
             ]})`
-            : `translate(${VoronoiTreemapHelpers.getLabelPos(this, d)})`;
+            : `translate(${VoronoiBubbleHelpers.getLabelPos(this, d)})`;
         })
         .html((d) => {
-          const { text, charsPerLine } = VoronoiTreemapHelpers.truncateByCell(d.data.key, this.hierarchy, d);
-          return VoronoiTreemapHelpers.multiline(text, false, charsPerLine, 1.4);
+          const { text, charsPerLine } = VoronoiBubbleHelpers.truncateByCell(d.data.key, this.hierarchy, d);
+          return VoronoiBubbleHelpers.multiline(text, false, charsPerLine, 1.4);
         })
         .attr("opacity", (d) => (d.value / this.totalValue > ratioLimit ? 1 : 0));
     }
@@ -28777,15 +28821,16 @@ svg.hover-visual-enabled .textArea:hover {
         .data(this.allNodes.filter((d) => d.depth === 3))
         .enter()
         .append("text")
-        .attr("class", (d) => `percent-label label-${d.id}`)
+        .attr("class", "vb-item-value")
+        .attr("data-id", (d) => d.id)
         .attr("text-anchor", "middle")
         .style(
           "font-size",
-          (d) => VoronoiTreemapHelpers.fontScale2(this.hierarchy, d) * 0.8 + "em"
+          (d) => VoronoiBubbleHelpers.fontScale2(this.hierarchy, d) * 0.8 + "em"
         )
         .attr(
-          "data-pop",
-          (d) => d.data.data.text ?? d.data.data.label
+          "data-item",
+          (d) => d.data.data.item ?? d.data.data.subgroup
         )
         .attr(
           "transform",
@@ -28793,20 +28838,20 @@ svg.hover-visual-enabled .textArea:hover {
             if (!d.polygon?.site) return `translate(0,0)`;
             return `translate(${[
             d.polygon.site.x,
-            d.polygon.site.y + VoronoiTreemapHelpers.varFontScale(this, d)
+            d.polygon.site.y + VoronoiBubbleHelpers.varFontScale(this, d)
           ]})`;
           }
         )
-        .text((d) => VoronoiTreemapHelpers.bigFormat(d.data.values[0].size))
+        .text((d) => VoronoiBubbleHelpers.bigFormat(d.data.values[0].size))
         .attr("opacity", (d) => (d.value > sizeLimit ? 1 : 0));
     }
 
     // === 4. Post-processing and Effects Methods ===
 
     _applyPostEffects() {
-      const { showMetaLabel, pebbleRound, pebbleWidth } = this.params;
+      const { showGroupLabel, pebbleRound, pebbleWidth } = this.params;
 
-      if (showMetaLabel) {
+      if (showGroupLabel) {
         this.labelAdjuster.adjust(this.svg.node(), { verticalSpacing: 0 });
       }
 
@@ -28814,7 +28859,7 @@ svg.hover-visual-enabled .textArea:hover {
         this.svg.node(),
         pebbleRound,
         pebbleWidth,
-        VoronoiTreemapHelpers.colorVar.bind(VoronoiTreemapHelpers)
+        VoronoiBubbleHelpers.colorVar.bind(VoronoiBubbleHelpers)
       );
     }
 
@@ -28824,8 +28869,8 @@ svg.hover-visual-enabled .textArea:hover {
         : labelMode === 'show' ? 1
         : labelMode === 'faded' ? 0.6
         : 0;
-      this.svg.selectAll('.labels tspan').style('opacity', op);
-      this.svg.selectAll('.textArea').style('stroke-opacity', op);
+      this.svg.selectAll('.vb-item-labels tspan').style('opacity', op);
+      this.svg.selectAll('.vb-cell[data-depth="3"]').style('stroke-opacity', op);
     }
 
     _setupZoom() {
@@ -28865,14 +28910,14 @@ svg.hover-visual-enabled .textArea:hover {
             : this.params.labelMode === 'faded' ? 0.6
             : 0;
           const zoomOpacity = modeOpacity + (1 - modeOpacity) * Math.min(1, k - 1);
-          svg.selectAll('.labels tspan').style('opacity', zoomOpacity);
-          svg.selectAll('.textArea').style('stroke-opacity', zoomOpacity);
+          svg.selectAll('.vb-item-labels tspan').style('opacity', zoomOpacity);
+          svg.selectAll('.vb-cell[data-depth="3"]').style('stroke-opacity', zoomOpacity);
 
           // keep stroke visually thin as zoom increases
-          svg.selectAll('.textArea').style('stroke-width', `${0.5 / k}px`);
-          svg.selectAll('.labelArea').style('stroke-width', `${0.7 / k}px`);
-          svg.selectAll('.metaLabelArea').style('stroke-width', `${1.5 / k}px`);
-          svg.selectAll('text.text-item, text.label-item, .region text, .label1 text, .percent text')
+          svg.selectAll('.vb-cell[data-depth="3"]').style('stroke-width', `${0.5 / k}px`);
+          svg.selectAll('.vb-cell[data-depth="2"]').style('stroke-width', `${0.7 / k}px`);
+          svg.selectAll('.vb-cell[data-depth="1"]').style('stroke-width', `${1.5 / k}px`);
+          svg.selectAll('text.vb-item-label, text.vb-subgroup-label, .vb-group-labels text, .vb-subgroup-labels text')
             .attr('transform', function() {
               const el = d3.select(this);
               const orig = el.attr('data-orig-transform') || el.attr('transform') || 'translate(0,0)';
@@ -28880,7 +28925,7 @@ svg.hover-visual-enabled .textArea:hover {
               return `${orig} scale(${textScale})`;
             });
 
-          svg.selectAll('foreignObject.region-label-foreign, foreignObject.bigcluster-label-foreign')
+          svg.selectAll('foreignObject.vb-group-label-html, foreignObject.vb-subgroup-label-html')
             .each(function() {
               const fo = d3.select(this);
               if (!fo.attr('data-orig-x')) {
@@ -28897,7 +28942,7 @@ svg.hover-visual-enabled .textArea:hover {
           // re-truncate text elements when zoom level changes by >20%
           if (Math.abs(k - lastK) / lastK > 0.2) {
             lastK = k;
-            svg.selectAll('text.text-item[data-full-text]').each(function() {
+            svg.selectAll('text.vb-item-label[data-full-text]').each(function() {
               const el = d3.select(this);
               const fullText = el.attr('data-full-text');
               const cellW = parseFloat(el.attr('data-cell-w') || 0);
@@ -28911,7 +28956,7 @@ svg.hover-visual-enabled .textArea:hover {
               const linesFit = Math.max(1, Math.floor(cellH / (fontPx * 1.4 * textScale)));
               const limit = Math.max(5, Math.min(fullText.length, charsPerLine * linesFit));
               const truncated = fullText.length <= limit ? fullText : fullText.slice(0, limit) + '…';
-              el.html(VoronoiTreemapHelpers.multiline(truncated, false, charsPerLine, 1.4));
+              el.html(VoronoiBubbleHelpers.multiline(truncated, false, charsPerLine, 1.4));
             });
           }
         });
@@ -28949,17 +28994,17 @@ svg.hover-visual-enabled .textArea:hover {
    * @param {string} clicked.key - The key/label of the clicked cell
    * @param {Object} [clicked.data] - Additional data associated with the cell
    * @param {Object} [options] - Popup configuration options
-   * @param {string} [options.format="{text}"] - Template string for popup content (e.g., "{key}: {value}")
-   * @param {string} [options.popupId="voronoi-popup"] - DOM ID for the popup element
-   * @param {string} [options.className="voronoi-popup-container"] - CSS class for the popup
+   * @param {string} [options.format="{item}"] - Template string for popup content (e.g., "{key}: {value}")
+   * @param {string} [options.popupId="vb-popup"] - DOM ID for the popup element
+   * @param {string} [options.className="vb-popup"] - CSS class for the popup
    * @param {Function} [options.onClose] - Callback function when popup is closed
    * @returns {HTMLElement|undefined} The created popup element, or undefined if no popup was created
    */
   function showVoronoiPopup(clicked, options = {}) {
     const {
-      format = "{text}",
-      popupId = "voronoi-popup",
-      className = "voronoi-popup-container",
+      format = "{item}",
+      popupId = "vb-popup",
+      className = "vb-popup",
       onClose = null
     } = options;
 
@@ -28987,10 +29032,12 @@ svg.hover-visual-enabled .textArea:hover {
 
     // Convert SVG coordinates to screen (page) coordinates
     // This handles all transformations including zoom, scale, translate
+    // getBBox() is in the path's OWN user space, so the CTM must be the path's —
+    // svgElement.getScreenCTM() misses every ancestor transform (margin translate, zoom).
     const svgPoint = svgElement.createSVGPoint();
     svgPoint.x = svgCenterX;
     svgPoint.y = svgCenterY;
-    const screenPoint = svgPoint.matrixTransform(svgElement.getScreenCTM());
+    const screenPoint = svgPoint.matrixTransform(clickedPath.getScreenCTM());
 
     // Use screen coordinates directly (relative to viewport)
     const x = screenPoint.x + window.scrollX;
@@ -29035,8 +29082,8 @@ svg.hover-visual-enabled .textArea:hover {
       zIndex: "1000"
     });
 
-    popup.innerHTML = `<div class="voronoi-popup-content">
-    <div class="voronoi-popup-message">${content}</div>
+    popup.innerHTML = `<div class="vb-popup-content">
+    <div class="vb-popup-message">${content}</div>
   </div>`;
 
     // Append to body (not container) to avoid zoom/transform effects
@@ -29050,7 +29097,7 @@ svg.hover-visual-enabled .textArea:hover {
     // Only drop below when it wouldn't fit above (would be clipped at the top).
     const gap = 10;
     const placeBelow = spaceAbove < popupHeight + gap;
-    popup.classList.add(placeBelow ? "popup-below" : "popup-above");
+    popup.classList.add(placeBelow ? "vb-popup-below" : "vb-popup-above");
 
     // Calculate horizontal position with boundary check
     let finalX = x - popupWidth / 2;
@@ -29076,8 +29123,8 @@ svg.hover-visual-enabled .textArea:hover {
         popup.remove();
         document.removeEventListener("click", handler);
         document.removeEventListener("touchstart", handler);
-        const clickedCell = svgElement.querySelector("path.clicked");
-        if (clickedCell) clickedCell.classList.remove("clicked");
+        const clickedCell = svgElement.querySelector("path.vb-clicked");
+        if (clickedCell) clickedCell.classList.remove("vb-clicked");
         if (onClose) onClose();
       }
     };
@@ -29092,22 +29139,22 @@ svg.hover-visual-enabled .textArea:hover {
   // Copyright (c) 2025 UXtechLab. All Rights Reserved.
   // Originally created by @taekie. Licensed under BUSL-1.1 by UXtechLab. See LICENSE for details.
   /**
-   * Voronoi Treemap Library
-   * Main entry point - exports VoronoiTreemap as default and helpers as named exports
+   * VoronoiBubble Library
+   * Main entry point - exports VoronoiBubble as default and helpers as named exports
    *
    * This module will be the public API surface for the library.
    * Consumers can import like:
-   *   import VoronoiTreemap from '@taekie/voronoi-treemap-class';
-   *   import { VoronoiTreemap, nestingForVoronoi, VoronoiTreemapHelpers } from '@taekie/voronoi-treemap-class';
-   *   import { showVoronoiPopup, createDOMPopup } from '@taekie/voronoi-treemap-class';
+   *   import VoronoiBubble from '@pxd-uxtech/voronoi-bubble';
+   *   import { VoronoiBubble, nestingForVoronoi, VoronoiBubbleHelpers } from '@pxd-uxtech/voronoi-bubble';
+   *   import { showVoronoiPopup, createDOMPopup } from '@pxd-uxtech/voronoi-bubble';
    */
 
   exports.LabelAdjuster = LabelAdjuster;
   exports.PebbleRenderer = PebbleRenderer;
-  exports.VoronoiTreemap = VoronoiTreemap;
-  exports.VoronoiTreemapHelpers = VoronoiTreemapHelpers;
+  exports.VoronoiBubble = VoronoiBubble;
+  exports.VoronoiBubbleHelpers = VoronoiBubbleHelpers;
   exports.createDOMPopup = createDOMPopup;
-  exports.default = VoronoiTreemap;
+  exports.default = VoronoiBubble;
   exports.getBubbleStyles = getBubbleStyles;
   exports.getPopupStyles = getPopupStyles;
   exports.nestingForVoronoi = nestingForVoronoi;

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<!-- Copyright (c) 2025 UXtechLab. VoronoiBubble — BUSL-1.1. See LICENSE. -->
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VoronoiBubble — Popup &amp; Hover</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, 'KoddiUD OnGothic', sans-serif; background: #fff; }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 24px 16px; }
+    #chart svg { width: 100%; height: auto; }
+
+    /* 팝업은 추가 CSS 없이 그대로 동작한다 (라이브러리가 스타일을 함께 내보낸다).
+       모양을 바꾸고 싶을 때만 아래처럼 덮어쓰면 된다:
+    .vb-popup-content { border-radius: 8px; border-color: #3b82f6; }
+    .vb-popup-message { min-width: 140px; padding: 0.8em; }
+    */
+  </style>
+</head>
+<body>
+  <div class="wrap"><div id="chart"></div></div>
+  <script type="module">
+    // 로컬 개발: npm run build 후 npm run dev
+    // CDN 사용 시: https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.0/dist/voronoi-bubble.standalone.js
+    import { VoronoiBubble, showVoronoiPopup } from '../dist/voronoi-bubble.standalone.js';
+
+    const data = [
+      { group: '긍정', subgroup: '배송', item: '배송이 빨라요', size: 30 },
+      { group: '긍정', subgroup: '배송', item: '포장이 꼼꼼해요', size: 20 },
+      { group: '긍정', subgroup: '품질', item: '재질이 좋아요', size: 25 },
+      { group: '부정', subgroup: '가격', item: '비싸요', size: 15 },
+      { group: '부정', subgroup: '가격', item: '배송비 부담', size: 10 },
+      { group: '부정', subgroup: 'AS', item: '응답이 느려요', size: 5 },
+    ];
+
+    // onClick: 셀 클릭 → 셀 위에 팝업. 같은 셀을 다시 누르거나 바깥을 누르면 닫힌다.
+    // onHover: 셀에 올렸을 때 cell, 벗어나면 null.
+    const svg = new VoronoiBubble().render(data, {
+      width: 1200, height: 900, showGroupLabel: true,
+      onClick: (cell) => showVoronoiPopup(cell, { format: '{item}\n그룹: {group}' }),
+      onHover: (cell) => console.log('hover:', cell && cell.item),
+    });
+    document.getElementById('chart').appendChild(svg);
+  </script>
+</body>
+</html>

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<!-- Copyright (c) 2025 UXtechLab. VoronoiBubble — BUSL-1.1. See LICENSE. -->
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VoronoiBubble — Playground</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, 'KoddiUD OnGothic', sans-serif; background: #fff; color: #222; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    p.lead { margin: 0 0 16px; color: #666; font-size: 14px; }
+    .controls {
+      display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center;
+      padding: 12px 16px; background: #f8f9fa; border: 1px solid #eee; border-radius: 10px;
+    }
+    .ctl { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+    .ctl b { font-weight: 600; }
+    .ctl output { min-width: 52px; font-variant-numeric: tabular-nums; color: #3b82f6; font-weight: 600; }
+    input[type="range"] { width: 150px; accent-color: #3b82f6; }
+    select { font-size: 13px; padding: 2px 6px; border: 1px solid #ddd; border-radius: 6px; background: #fff; }
+    .stats { margin: 10px 2px; font-size: 13px; color: #666; }
+    .stats code { background: #f4f4f5; padding: 1px 6px; border-radius: 4px; }
+    #chart { margin-top: 6px; }
+    #chart svg { display: block; }
+    label.radio { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Playground — 항목 수 × 캔버스 크기 × fontScale</h1>
+    <p class="lead">
+      항목 수와 렌더 크기를 바꿔가며 폰트 정규화를 확인하는 페이지입니다.
+      "고정 폭 표시"에서는 캔버스 크기가 달라도 글자-셀 비율이 일정해야 정상입니다.
+    </p>
+
+    <div class="controls">
+      <div class="ctl"><b>항목 수</b>
+        <input id="n" type="range" min="10" max="1000" step="10" value="500">
+        <output id="nOut">500</output>
+      </div>
+      <div class="ctl"><b>크기 편차</b>
+        <input id="sp" type="range" min="0" max="8" step="1" value="5">
+        <output id="spOut">×50</output>
+      </div>
+      <div class="ctl"><b>width</b>
+        <input id="w" type="range" min="400" max="1600" step="50" value="1000">
+        <output id="wOut">1000</output>
+      </div>
+      <div class="ctl"><b>fontScale</b>
+        <input id="fs" type="range" min="0.5" max="2" step="0.1" value="1">
+        <output id="fsOut">1.0</output>
+      </div>
+      <div class="ctl"><b>그룹 라벨</b>
+        <input id="gls" type="range" min="0.5" max="2.5" step="0.1" value="1.1">
+        <output id="glsOut">1.1</output>
+      </div>
+      <div class="ctl"><b>서브그룹 라벨</b>
+        <input id="sls" type="range" min="0.3" max="1.5" step="0.05" value="1.05">
+        <output id="slsOut">1.05</output>
+      </div>
+      <div class="ctl"><b>팔레트</b>
+        <select id="pal">
+          <option value="pastel" selected>pastel (기본)</option>
+          <option value="starryNight">starryNight — 반 고흐</option>
+          <option value="waterLilies">waterLilies — 모네</option>
+          <option value="wave">wave — 호쿠사이</option>
+          <option value="kiss">kiss — 클림트</option>
+          <option value="sunrise">sunrise — 모네</option>
+          <option value="oklch">OKLCH 생성기</option>
+        </select>
+      </div>
+      <div class="ctl"><b>명도 L</b>
+        <input id="pl" type="range" min="0.60" max="0.95" step="0.01" value="0.85">
+        <output id="plOut">0.85</output>
+      </div>
+      <div class="ctl"><b>채도 C</b>
+        <input id="pc" type="range" min="0.02" max="0.16" step="0.005" value="0.08">
+        <output id="pcOut">0.080</output>
+      </div>
+      <div class="ctl"><b>시작 색상</b>
+        <input id="ph" type="range" min="0" max="360" step="5" value="30">
+        <output id="phOut">30°</output>
+      </div>
+      <div class="ctl"><b>labelMode</b>
+        <label class="radio"><input type="radio" name="lm" value="faded" checked> faded</label>
+        <label class="radio"><input type="radio" name="lm" value="show"> show</label>
+      </div>
+      <div class="ctl"><b>퍼센트</b>
+        <label class="radio"><input id="pct" type="checkbox" checked> showPercent</label>
+      </div>
+      <div class="ctl"><b>표시</b>
+        <label class="radio"><input type="radio" name="disp" value="fit" checked> 고정 폭(720px)</label>
+        <label class="radio"><input type="radio" name="disp" value="actual"> 실제 크기</label>
+      </div>
+    </div>
+
+    <p class="stats" id="stats"></p>
+    <div id="swatches" style="display:flex;gap:4px;margin:2px 2px 8px;"></div>
+    <div id="chart" class="fit"></div>
+  </div>
+
+  <script type="module">
+    // 로컬 개발: npm run build 후 npm run dev
+    import { VoronoiBubble, showVoronoiPopup } from '../dist/voronoi-bubble.standalone.js';
+
+    // 그룹 라벨 ≈ 3단어, 서브그룹 라벨 3~5단어 — 실전 클러스터 라벨 길이에 맞춤.
+    const GROUPS = [
+      '배송 관련 경험', '제품 품질 평가', '가격 체감 반응',
+      '고객 응대 만족', '패키지 디자인 반응', '앱 사용 편의성',
+    ];
+    const SW1 = ['최근', '반복되는', '신규', '기존', '온라인', '매장'];
+    const SW2 = ['배송', '포장', '가격', '품질', '디자인', '응대', '환불', '사이즈'];
+    const SW3 = ['지연', '불만', '만족', '문의', '오류', '개선', '요청'];
+    const SW4 = ['후기', '언급', '사례', '민원', '피드백'];
+    const SW5 = ['다수', '증가', '지속', '집중'];
+    const PHRASES = [
+      '배송이 빨라요', '포장이 꼼꼼해요', '가성비 좋아요', '재질이 좋아요',
+      '응답이 느려요', '환불이 어려워요', '디자인이 예뻐요', '사이즈가 애매해요',
+      '색상이 화면과 달라요', '재구매 의사 있어요', '품절이 잦아요', '설명이 자세해요',
+    ];
+
+    // 크기 편차: 최대/최소 weight 배율. 로그-균등 분포라 큰 셀 소수 + 작은 셀 다수가 나온다.
+    const SPREADS = [1, 2, 5, 10, 20, 50, 100, 200, 500];
+
+    // 시드 고정 LCG — 슬라이더를 움직여도 같은 (n, 편차)면 같은 데이터가 나오게.
+    function makeData(n, spread, seed = 42) {
+      let s = seed;
+      const rnd = () => (s = (s * 1103515245 + 12345) % 2147483648) / 2147483648;
+      const pick = (arr) => arr[Math.floor(rnd() * arr.length)];
+      const subPerGroup = Math.max(2, Math.round(Math.sqrt(n) / 2));
+
+      // 그룹별 서브그룹 이름을 3~5단어로 미리 생성 (중복은 Set으로 제거)
+      const subNames = GROUPS.map(() => {
+        const names = new Set();
+        let guard = 0;
+        while (names.size < subPerGroup && guard++ < 500) {
+          const words = [pick(SW2), pick(SW3), pick(SW4)];         // 3단어
+          if (rnd() < 0.6) words.unshift(pick(SW1));               // 4단어
+          if (rnd() < 0.4) words.push(pick(SW5));                  // 5단어
+          names.add(words.join(' '));
+        }
+        return [...names];
+      });
+
+      const data = [];
+      for (let i = 0; i < n; i++) {
+        const gi = Math.floor(rnd() * GROUPS.length);
+        data.push({
+          group: GROUPS[gi],
+          subgroup: pick(subNames[gi]),
+          item: `${PHRASES[Math.floor(rnd() * PHRASES.length)]} #${i + 1}`,
+          size: Math.max(1, Math.round(Math.pow(spread, rnd()))),
+        });
+      }
+      return data;
+    }
+
+    const $ = (id) => document.getElementById(id);
+    const chart = $('chart');
+    let timer = null;
+
+    // OKLCH → sRGB hex (감마 보정 + 채널 클램프). 같은 L/C에 hue만 회전시켜
+    // "같은 톤, 다른 색상" 팔레트를 만든다 — 이 렌더러의 밝기 파생과 궁합이 좋다.
+    function oklchToHex(L, C, Hdeg) {
+      const h = (Hdeg * Math.PI) / 180;
+      const a = C * Math.cos(h), b = C * Math.sin(h);
+      const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+      const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+      const s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+      const l3 = l_ ** 3, m3 = m_ ** 3, s3 = s_ ** 3;
+      const lin = [
+        4.0767416621 * l3 - 3.3077115913 * m3 + 0.2309699292 * s3,
+        -1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3,
+        -0.0041960863 * l3 - 0.7034186147 * m3 + 1.7076147010 * s3,
+      ];
+      return '#' + lin.map((x) => {
+        x = Math.min(1, Math.max(0, x));
+        const srgb = x <= 0.0031308 ? 12.92 * x : 1.055 * Math.pow(x, 1 / 2.4) - 0.055;
+        return Math.round(srgb * 255).toString(16).padStart(2, '0');
+      }).join('');
+    }
+    const oklchPalette = (n, L, C, h0) =>
+      Array.from({ length: n }, (_, i) => oklchToHex(L, C, (h0 + (i * 360) / n) % 360));
+
+    function currentPalette() {
+      const mode = $('pal').value;
+      if (mode === 'oklch') {
+        return oklchPalette(12, +$('pl').value, +$('pc').value, +$('ph').value);
+      }
+      return mode; // 프리셋 이름 문자열 (라이브러리가 해석)
+    }
+
+    function drawSwatches(colors) {
+      const list = Array.isArray(colors)
+        ? colors
+        : (VoronoiBubble.PALETTES[colors] || []).slice(0, 12);
+      $('swatches').innerHTML = list.map((c) =>
+        `<div title="${c}" style="width:26px;height:18px;border-radius:4px;background:${c};border:1px solid #0002"></div>`,
+      ).join('');
+    }
+
+    function render() {
+      const n = +$('n').value;
+      const width = +$('w').value;
+      const height = Math.round(width * 0.75);
+      const fontScale = +$('fs').value;
+      const k = Math.sqrt((width * height) / (1200 * 900)) * fontScale;
+
+      const spread = SPREADS[+$('sp').value];
+      const data = makeData(n, spread);
+      const sizes = data.map((d) => d.size);
+      const t0 = performance.now();
+      const svg = new VoronoiBubble().render(data, {
+        width, height, fontScale,
+        colors: currentPalette(),
+        title: '고객 리뷰 토픽 맵 — VoronoiBubble Playground',
+        caption: `합성 리뷰 ${n}건 · 크기 편차 ×${spread} · 시드 고정 재현`,
+        groupLabelScale: +$('gls').value,
+        subgroupLabelScale: +$('sls').value,
+        seedRandom: 'playground',
+        showGroupLabel: true,
+        showPercent: $('pct').checked,
+        labelMode: document.querySelector('input[name="lm"]:checked').value,
+        onClick: (cell) => showVoronoiPopup(cell, {
+          format: '{item}\n{subgroup} · {group}\nweight {size}',
+        }),
+      });
+      const ms = Math.round(performance.now() - t0);
+
+      svg.setAttribute('viewBox', svg.getAttribute('viewBox') || `0 0 ${width} ${height}`);
+      chart.replaceChildren(svg);
+      lastWidth = width;
+      applyDisplay();
+      drawSwatches(currentPalette());
+      const palInfo = $('pal').value === 'oklch'
+        ? ` · OKLCH <code>L ${$('pl').value} C ${$('pc').value} H₀ ${$('ph').value}°</code>`
+        : '';
+      $('stats').innerHTML =
+        `캔버스 <code>${width}×${height}</code> · 폰트 계수 k=<code>${k.toFixed(3)}</code>` +
+        ` · weight <code>${Math.min(...sizes)}~${Math.max(...sizes)}</code> · 렌더 <code>${ms}ms</code>${palInfo}`;
+    }
+
+    // 라이브러리가 SVG에 인라인 width/max-width를 넣으므로 표시 크기는 여기서 덮어쓴다.
+    let lastWidth = 1200;
+    function applyDisplay() {
+      const svg = chart.querySelector('svg');
+      if (!svg) return;
+      const mode = document.querySelector('input[name="disp"]:checked').value;
+      svg.style.height = 'auto';
+      if (mode === 'fit') {
+        svg.style.width = '720px';
+        svg.style.maxWidth = '100%';
+      } else {
+        svg.style.width = lastWidth + 'px';
+        svg.style.maxWidth = 'none';
+      }
+    }
+
+    function requestRender() {
+      $('nOut').textContent = $('n').value;
+      $('wOut').textContent = $('w').value;
+      $('fsOut').textContent = (+$('fs').value).toFixed(1);
+      $('glsOut').textContent = (+$('gls').value).toFixed(1);
+      $('slsOut').textContent = (+$('sls').value).toFixed(2);
+      $('spOut').textContent = '×' + SPREADS[+$('sp').value];
+      $('plOut').textContent = (+$('pl').value).toFixed(2);
+      $('pcOut').textContent = (+$('pc').value).toFixed(3);
+      $('phOut').textContent = $('ph').value + '°';
+      clearTimeout(timer);
+      timer = setTimeout(render, 250);
+    }
+
+    for (const id of ['n', 'w', 'fs', 'gls', 'sls', 'sp', 'pl', 'pc', 'ph']) {
+      $(id).addEventListener('input', requestRender);
+    }
+    $('pct').addEventListener('change', requestRender);
+    $('pal').addEventListener('change', requestRender);
+    for (const r of document.querySelectorAll('input[name="lm"]')) {
+      r.addEventListener('change', requestRender);
+    }
+    for (const r of document.querySelectorAll('input[name="disp"]')) {
+      r.addEventListener('change', applyDisplay);
+    }
+    render();
+  </script>
+</body>
+</html>

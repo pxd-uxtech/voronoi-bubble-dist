@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<!-- Copyright (c) 2025 UXtechLab. VoronoiBubble — BUSL-1.1. See LICENSE. -->
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VoronoiBubble — Custom Labels</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, 'KoddiUD OnGothic', sans-serif; background: #fff; }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 24px 16px; }
+    #chart svg { width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  <div class="wrap"><div id="chart"></div></div>
+  <script type="module">
+    // 로컬 개발: npm run build 후 npm run dev
+    // CDN 사용 시: https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.0/dist/voronoi-bubble.standalone.js
+    import { VoronoiBubble } from '../dist/voronoi-bubble.standalone.js';
+
+    const data = [
+      { group: '긍정', subgroup: '배송', item: '배송이 빨라요', size: 30 },
+      { group: '긍정', subgroup: '배송', item: '포장이 꼼꼼해요', size: 20 },
+      { group: '긍정', subgroup: '품질', item: '재질이 좋아요', size: 25 },
+      { group: '부정', subgroup: '가격', item: '비싸요', size: 15 },
+      { group: '부정', subgroup: '가격', item: '배송비 부담', size: 10 },
+      { group: '부정', subgroup: 'AS', item: '응답이 느려요', size: 5 },
+    ];
+
+    // renderGroupLabel(d, defaultHtml, ctx) → HTML 문자열.
+    // ctx: key / percentText / fontSize / color / darkerColor / lighterColor / ratio ...
+    const svg = new VoronoiBubble().render(data, {
+      width: 1200, height: 900, showGroupLabel: true,
+      renderGroupLabel: (d, defaultHtml, ctx) => `
+        <div style="text-align:center;color:#fff;">
+          <div style="font-weight:700;font-size:${ctx.fontSize * 0.95}em;
+                      -webkit-text-stroke:3px ${ctx.darkerColor};paint-order:stroke fill;">
+            ${ctx.key}<br>
+            <small style="font-size:76%;">${ctx.percentText}</small>
+          </div>
+        </div>`,
+    });
+    document.getElementById('chart').appendChild(svg);
+  </script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 
 계층 데이터를 조약돌 모양 보로노이 트리맵으로 그리는 시각화 엔진입니다. 평평한 행 배열(flat rows)을 그대로 넣으면 `group → subgroup → item` 3계층으로 묶어 SVG 하나를 돌려줍니다. `d3.hierarchy()`를 직접 만들 필요도, 리사이즈 계산 코드를 붙일 필요도 없습니다. AffinityBubble의 렌더링 엔진이기도 합니다.
 
-![VoronoiBubble 예시 — 고객 리뷰 250건 토픽 맵 (group → subgroup → item 3계층)](docs/images/hero.png)
+![VoronoiBubble 예시 — 고객 리뷰 270건 토픽 맵 (group → subgroup → item 3계층)](docs/images/hero.png)
 
 ## 특징
 

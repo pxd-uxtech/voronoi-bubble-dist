@@ -1596,7 +1596,10 @@
         node.polygon = clippingPolygon;
 
         if (node.height != 0) {
-          const iterCount = adaptiveIterations
+          // Only the leaf-most partition (node.height === 1) may trade accuracy
+          // for speed — container partitions (root/group/subgroup) define the
+          // areas users actually read, so they always get the full budget.
+          const iterCount = adaptiveIterations && node.height === 1
             ? Math.max(10, Math.round(maxIterationCount / Math.sqrt(node.children.length / 3)))
             : maxIterationCount;
           simulation = d3

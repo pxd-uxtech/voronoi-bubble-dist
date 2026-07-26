@@ -20,7 +20,7 @@
 <div id="chart"></div>
 
 <script type="module">
-  import { VoronoiBubble } from 'https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.0/dist/voronoi-bubble.standalone.js';
+  import { VoronoiBubble } from 'https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.1/dist/voronoi-bubble.standalone.js';
 
   const data = [
     { group: '긍정', subgroup: '배송', item: '배송이 빨라요',   size: 30 },
@@ -48,7 +48,7 @@
 ## CDN
 
 ```
-https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.0/dist/voronoi-bubble.standalone.js
+https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.1/dist/voronoi-bubble.standalone.js
 ```
 
 
@@ -67,7 +67,17 @@ https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.0/dist/voronoi-b
 - [docs/MIGRATION.md](docs/MIGRATION.md) — v1 → v2 전체 리네임 표와 before/after 예제
 - [CHANGELOG.md](CHANGELOG.md) — 버전별 변경 이력
 - [CONTRIBUTING.md](CONTRIBUTING.md) — 개발 환경, PR 절차
-- [examples/](examples/) — 실행 가능한 예제 4종
+- [examples/](examples/) — 실행 가능한 예제
+
+## ChatGPT / Codex 스킬
+
+이 저장소는 `skills/voronoi-bubble/`에 VoronoiBubble용 스킬도 함께 제공합니다. 스킬은 ChatGPT/Codex가 사용자 데이터를 `group → subgroup → item → size` 형식으로 매핑하고, 클릭 팝업이 포함된 브라우저용 HTML 예제를 만들 때 쓰는 지침과 템플릿입니다.
+
+- 기본 출력: CDN UMD 번들을 쓰는 단일 HTML (`skills/voronoi-bubble/assets/cdn-popup-template.html`)
+- 오프라인 출력: 로컬 `./dist/voronoi-bubble.standalone.umd.js`를 쓰는 HTML (`skills/voronoi-bubble/assets/local-popup-template.html`)
+- 플러그인 패키징: `.codex-plugin/plugin.json`이 포함되어 있어 skills-only 플러그인으로 확장할 수 있습니다.
+
+ChatGPT/Codex에서 이 스킬을 사용할 때는 “VoronoiBubble 팝업 HTML을 만들어줘”처럼 요청하면 됩니다. 자동 렌더링 UI나 외부 데이터 연동이 필요하면 이후 MCP/UI 플러그인으로 확장하세요.
 
 ## 개발
 

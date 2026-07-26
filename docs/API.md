@@ -19,7 +19,7 @@ v2.0 기준 전체 API 레퍼런스입니다. v1에서 올라오는 경우 [MIGR
 ## 로드하기
 
 ```
-https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.0/dist/voronoi-bubble.standalone.js
+https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.1/dist/voronoi-bubble.standalone.js
 ```
 
 
@@ -27,14 +27,14 @@ https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.0/dist/voronoi-b
 
 ```javascript
 import { VoronoiBubble, showVoronoiPopup }
-  from 'https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.0/dist/voronoi-bubble.standalone.js';
+  from 'https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.1/dist/voronoi-bubble.standalone.js';
 ```
 
 Observable에서는 동적 import를 씁니다.
 
 ```javascript
 {
-  const m = await import("https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.0/dist/voronoi-bubble.standalone.js");
+  const m = await import("https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.1/dist/voronoi-bubble.standalone.js");
   VoronoiBubble = m.VoronoiBubble;
   showVoronoiPopup = m.showVoronoiPopup;
   return m;
@@ -44,7 +44,7 @@ Observable에서는 동적 import를 씁니다.
 ### `<script>` 태그 (UMD, `file://`에서도 동작)
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.0/dist/voronoi-bubble.standalone.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.1/dist/voronoi-bubble.standalone.umd.js"></script>
 <script>
   const { VoronoiBubble, showVoronoiPopup } = VoronoiBubbleModule;
 </script>
@@ -171,7 +171,7 @@ document.getElementById('chart').appendChild(svg);
 | 옵션 | 타입 | 기본값 | 설명 |
 |---|---|---|---|
 | `width` | `number` | `1200` | 그리기 좌표계 너비 (viewBox) |
-| `height` | `number` | `900` | 그리기 좌표계 높이 (viewBox; 제목이 있으면 +30) |
+| `height` | `number` | `900` | 그리기 좌표계 높이 (viewBox; 제목이 있으면 +48) |
 | `title` | `string` | `''` | 차트 제목. HTML 문자열 허용 (`.vb-title`) |
 | `caption` | `string` | `''` | 차트 하단 캡션. HTML 문자열 허용 (`.vb-caption`) |
 
@@ -225,7 +225,7 @@ document.getElementById('chart').appendChild(svg);
 | `positions` | `{key, depth, x, y}[]\|null` | `null` | 셀 위치 힌트. 배열이 아니면 자동 배치 |
 | `seedRandom` | `number\|string` | `10` | 난수 시드. 같은 시드 → 같은 레이아웃 |
 | `pieSize` | `number` | `1` | 버블 덩어리 면적 비율 (선형 축소율 = `√pieSize`) |
-| `adaptiveIterations` | `boolean` | `true` | 셀 수렴 반복 횟수를 적응적으로 조절 |
+| `adaptiveIterations` | `boolean` | `true` | 말단(depth 3) 분할에서만 셀 수가 많을 때 수렴 반복을 줄여 속도를 얻습니다. 그룹·서브그룹 면적을 정하는 상위 분할은 항상 전체 반복으로 수렴시키므로 읽는 면적의 정확도는 유지됩니다 |
 
 ### 외곽선·기타
 

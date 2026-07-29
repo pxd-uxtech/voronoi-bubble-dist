@@ -1,6 +1,10 @@
 # VoronoiBubble
 
-VoronoiBubble은 계층 데이터를 조약돌 모양 보로노이 트리맵으로 쉽게 그려주는 시각화 엔진입니다. `group → subgroup → item → size` 컬럼을 가진 tidy-style flat rows를 그대로 넣으면 3계층 SVG를 바로 그려줍니다. 정성데이터 토픽 맵뿐 아니라 부처별 정부 예산, 책·문서 분류 지도처럼 이미 계층과 가중치를 가진 데이터에도 잘 맞습니다. `d3.hierarchy()`를 직접 만들 필요도, 리사이즈 계산 코드를 붙일 필요도 없습니다. AffinityBubble의 렌더링 엔진이기도 합니다.
+VoronoiBubble은 보로노이 트리맵을 쉽게, 의미 위치까지 반영해서 그리는 렌더러입니다. `group → subgroup → item → size` 컬럼을 가진 tidy-style flat rows를 그대로 넣으면 3계층 SVG를 바로 그려줍니다. `d3.hierarchy()`를 직접 만들 필요도, 리사이즈 계산 코드를 붙일 필요도 없습니다.
+
+기존 보로노이 트리맵은 계층 구조와 크기 표현에 강하지만, 셀의 위치가 의미를 갖기 어렵습니다. VoronoiBubble은 계층과 면적 인코딩은 유지하면서, `positions` 옵션으로 UMAP처럼 비슷한 항목을 가깝게 배치하는 의미 위치 힌트를 줄 수 있습니다.
+
+그래서 고객 리뷰·설문 주관식·인터뷰 같은 정성데이터 지도에 특히 잘 맞습니다. 동시에 부처별 정부 예산, 책·문서 분류 지도처럼 이미 계층과 가중치를 가진 데이터에도 사용할 수 있습니다. AffinityBubble의 렌더링 엔진이기도 합니다.
 
 ![VoronoiBubble 예시 — 고객 리뷰 270건 토픽 맵 (group → subgroup → item 3계층)](docs/images/hero.png)
 

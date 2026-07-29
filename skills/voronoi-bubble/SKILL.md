@@ -5,9 +5,9 @@ description: Use when creating easy Voronoi treemap visualizations with VoronoiB
 
 # VoronoiBubble
 
-Use this skill to create executable Voronoi treemap examples with VoronoiBubble from user-provided tidy-style flat rows. Prefer a working HTML artifact over abstract explanation when the user asks to make a chart, popup, or image workflow. The data may be qualitative topic data or any prepared hierarchy with numeric weights, such as government budgets, book maps, document classifications, organization sizes, or project portfolios.
+Use this skill to create executable Voronoi treemap examples with VoronoiBubble from user-provided tidy-style flat rows. Prefer a working HTML artifact over abstract explanation when the user asks to make a chart, popup, or image workflow. Present VoronoiBubble first as an easy Voronoi treemap renderer with optional semantic position hints. Qualitative topic maps are an important use case, but the data may be any prepared hierarchy with numeric weights, such as government budgets, book maps, document classifications, organization sizes, or project portfolios.
 
-Emphasize that VoronoiBubble is the brand name for an easy Voronoi treemap renderer, and that tidy-style rows can be rendered directly without manually building `d3.hierarchy()` data. When relevant, use `groupColors` for direct color assignment, `sentiment` for positive/negative colormaps, `positions` to control relative placement, and label options that reduce overlap rather than leaving users with a raw geometric layout.
+Emphasize that VoronoiBubble is the brand name for an easy Voronoi treemap renderer, and that tidy-style rows can be rendered directly without manually building `d3.hierarchy()` data. Explain that ordinary Voronoi treemaps show hierarchy and area, while `positions` can add UMAP-like semantic placement so similar concepts appear closer together. When relevant, use `groupColors` for direct color assignment, `sentiment` for positive/negative colormaps, `positions` to control relative placement, and label options that reduce overlap rather than leaving users with a raw geometric layout.
 
 ## Defaults
 

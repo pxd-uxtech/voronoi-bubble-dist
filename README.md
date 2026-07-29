@@ -2,9 +2,11 @@
 
 [한국어 문서](README.ko.md)
 
-VoronoiBubble is a prebuilt visualization library for drawing hierarchical data as an easy, pebble-like Voronoi treemap. Pass tidy-style flat rows with `group -> subgroup -> item -> size` columns and it renders a three-level responsive SVG directly. You do not need to build `d3.hierarchy()` data, wire resize code, or hand-tune a raw geometric layout.
+VoronoiBubble is a prebuilt renderer for drawing Voronoi treemaps easily, with optional semantic position hints. Pass tidy-style flat rows with `group -> subgroup -> item -> size` columns and it renders a three-level responsive SVG directly. You do not need to build `d3.hierarchy()` data, wire resize code, or hand-tune a raw geometric layout.
 
-It works for qualitative topic maps from reviews, surveys, and interviews, but it is not limited to qualitative data. It also fits prepared hierarchies such as government budgets, book maps, document taxonomies, organization sizes, and project portfolios. VoronoiBubble is also the rendering engine used by AffinityBubble.
+Traditional Voronoi treemaps are good at showing hierarchy and area, but the cell positions usually carry little meaning. VoronoiBubble keeps the hierarchy and size encoding, while `positions` lets you guide groups or subgroups with UMAP-like coordinates so similar concepts can appear near each other.
+
+This makes it especially useful for qualitative data maps from reviews, surveys, and interviews. It also fits prepared hierarchies such as government budgets, book maps, document taxonomies, organization sizes, and project portfolios. VoronoiBubble is the rendering engine used by AffinityBubble.
 
 ![VoronoiBubble example: customer review topic map with group -> subgroup -> item hierarchy](docs/images/hero.png)
 

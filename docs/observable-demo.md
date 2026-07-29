@@ -31,24 +31,24 @@ VB = {
 
 ```javascript
 data = [
-  { topic: "Shipping", aspect: "Delivery speed", opinion: "Arrived next day", mentions: 18 },
-  { topic: "Shipping", aspect: "Delivery speed", opinion: "Faster than expected", mentions: 11 },
-  { topic: "Shipping", aspect: "Delivery delays", opinion: "Took over a week", mentions: 8 },
-  { topic: "Shipping", aspect: "Delivery delays", opinion: "No tracking updates", mentions: 5 },
-  { topic: "Shipping", aspect: "Packaging", opinion: "Well protected box", mentions: 9 },
-  { topic: "Product Quality", aspect: "Build quality", opinion: "Feels premium", mentions: 14 },
-  { topic: "Product Quality", aspect: "Build quality", opinion: "Solid materials", mentions: 9 },
-  { topic: "Product Quality", aspect: "Durability issues", opinion: "Broke within a month", mentions: 7 },
-  { topic: "Product Quality", aspect: "Consistency", opinion: "Color differs from photos", mentions: 6 },
-  { topic: "Pricing", aspect: "Value for money", opinion: "Great value", mentions: 13 },
-  { topic: "Pricing", aspect: "Value for money", opinion: "Would buy again", mentions: 8 },
-  { topic: "Pricing", aspect: "Price increases", opinion: "Got more expensive", mentions: 6 },
-  { topic: "Support", aspect: "Helpful agents", opinion: "Solved it right away", mentions: 10 },
-  { topic: "Support", aspect: "Slow responses", opinion: "Waited days for a reply", mentions: 8 },
-  { topic: "Support", aspect: "Refund friction", opinion: "Refund was complicated", mentions: 6 },
-  { topic: "App Experience", aspect: "Easy ordering", opinion: "Checkout is quick", mentions: 11 },
-  { topic: "App Experience", aspect: "App crashes", opinion: "App keeps crashing", mentions: 7 },
-  { topic: "App Experience", aspect: "Search gaps", opinion: "Search misses items", mentions: 5 }
+  { topic: "🚚 Shipping", aspect: "Delivery speed", opinion: "Arrived next day", mentions: 18 },
+  { topic: "🚚 Shipping", aspect: "Delivery speed", opinion: "Faster than expected", mentions: 11 },
+  { topic: "🚚 Shipping", aspect: "Delivery delays", opinion: "Took over a week", mentions: 8 },
+  { topic: "🚚 Shipping", aspect: "Delivery delays", opinion: "No tracking updates", mentions: 5 },
+  { topic: "🚚 Shipping", aspect: "Packaging", opinion: "Well protected box", mentions: 9 },
+  { topic: "✨ Product Quality", aspect: "Build quality", opinion: "Feels premium", mentions: 14 },
+  { topic: "✨ Product Quality", aspect: "Build quality", opinion: "Solid materials", mentions: 9 },
+  { topic: "✨ Product Quality", aspect: "Durability issues", opinion: "Broke within a month", mentions: 7 },
+  { topic: "✨ Product Quality", aspect: "Consistency", opinion: "Color differs from photos", mentions: 6 },
+  { topic: "💰 Pricing", aspect: "Value for money", opinion: "Great value", mentions: 13 },
+  { topic: "💰 Pricing", aspect: "Value for money", opinion: "Would buy again", mentions: 8 },
+  { topic: "💰 Pricing", aspect: "Price increases", opinion: "Got more expensive", mentions: 6 },
+  { topic: "🎧 Support", aspect: "Helpful agents", opinion: "Solved it right away", mentions: 10 },
+  { topic: "🎧 Support", aspect: "Slow responses", opinion: "Waited days for a reply", mentions: 8 },
+  { topic: "🎧 Support", aspect: "Refund friction", opinion: "Refund was complicated", mentions: 6 },
+  { topic: "📱 App Experience", aspect: "Easy ordering", opinion: "Checkout is quick", mentions: 11 },
+  { topic: "📱 App Experience", aspect: "App crashes", opinion: "App keeps crashing", mentions: 7 },
+  { topic: "📱 App Experience", aspect: "Search gaps", opinion: "Search misses items", mentions: 5 }
 ]
 ```
 
@@ -101,9 +101,9 @@ positionedChart = {
   // 임베딩+UMAP 좌표를 그대로 넣으면 의미상 가까운 주제가 화면에서도 가까워진다
   // (docs/API.md '위치 제어와 재현성' 참조).
   const positions = [
-    { key: "Shipping", depth: 1, x: 0.15, y: 0.5 },
-    { key: "Product Quality", depth: 1, x: 0.5, y: 0.2 },
-    { key: "App Experience", depth: 1, x: 0.85, y: 0.5 }
+    { key: "🚚 Shipping", depth: 1, x: 0.15, y: 0.5 },
+    { key: "✨ Product Quality", depth: 1, x: 0.5, y: 0.2 },
+    { key: "📱 App Experience", depth: 1, x: 0.85, y: 0.5 }
   ];
   const svg = new VB.VoronoiBubble().render(data, {
     width: 1200,
@@ -111,7 +111,7 @@ positionedChart = {
     levels: ["topic", "aspect", "opinion"],
     value: "mentions",
     title: "Same data, groups pinned with `positions`",
-    caption: "Shipping left · Product Quality top · App Experience right — layout stays put across re-renders",
+    caption: "🚚 left · ✨ top · 📱 right — layout stays put across re-renders",
     positions,
     seedRandom: "demo",
     showGroupLabel: true

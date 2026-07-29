@@ -1,6 +1,6 @@
 # VoronoiBubble
 
-[한국어 문서](README.ko.md)
+[Korean README](README.ko.md)
 
 VoronoiBubble is a prebuilt renderer for drawing Voronoi treemaps easily, with optional semantic position hints. Pass tidy-style flat rows with `group -> subgroup -> item -> size` columns and it renders a three-level responsive SVG directly. You do not need to build `d3.hierarchy()` data, wire resize code, or hand-tune a raw geometric layout.
 

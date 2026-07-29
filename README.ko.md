@@ -146,8 +146,4 @@ npm run dev     # serve . -l 3000 → http://localhost:3000/examples/
 
 [MIT](LICENSE) — Licensor: UXtechLab. 원저작자 [@taekie](https://github.com/taekie).
 
-- 비상업적·개인적 용도는 제한 없이 무료입니다.
-- 상업적 이용은 UXtechLab의 별도 라이선스가 필요합니다.
-- **2029-01-01(Change Date)에 MIT로 자동 전환**됩니다. 그 이후 버전과 이전 버전 모두 MIT 조건으로 사용할 수 있습니다.
-
 전문은 [LICENSE](LICENSE)를 확인하세요.

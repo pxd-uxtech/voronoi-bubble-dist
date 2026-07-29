@@ -82,6 +82,13 @@
         <input id="ph" type="range" min="0" max="360" step="5" value="30">
         <output id="phOut">30°</output>
       </div>
+      <div class="ctl"><b>colorVariation</b>
+        <select id="cv">
+          <option value="standard" selected>standard</option>
+          <option value="subtle">subtle</option>
+          <option value="strong">strong</option>
+        </select>
+      </div>
       <div class="ctl"><b>labelMode</b>
         <label class="radio"><input type="radio" name="lm" value="faded" checked> faded</label>
         <label class="radio"><input type="radio" name="lm" value="show"> show</label>
@@ -214,6 +221,7 @@
       const svg = new VoronoiBubble().render(data, {
         width, height, fontScale,
         colors: currentPalette(),
+        colorVariation: $('cv').value,
         title: '고객 리뷰 토픽 맵 — VoronoiBubble Playground',
         caption: `합성 리뷰 ${n}건 · 크기 편차 ×${spread} · 시드 고정 재현`,
         groupLabelScale: +$('gls').value,
@@ -276,6 +284,7 @@
     }
     $('pct').addEventListener('change', requestRender);
     $('pal').addEventListener('change', requestRender);
+    $('cv').addEventListener('change', requestRender);
     for (const r of document.querySelectorAll('input[name="lm"]')) {
       r.addEventListener('change', requestRender);
     }

@@ -1,8 +1,8 @@
 /*!
  * VoronoiBubble (@pxd-uxtech/voronoi-bubble)
  * Originally created by @taekie
- * Copyright (c) 2025 UXtechLab.
- * Licensed under the MIT License. See LICENSE for details.
+ * Copyright (c) 2025 UXtechLab. All Rights Reserved.
+ * Released under the MIT License. See LICENSE for details.
  */
 function _mergeNamespaces(n, m) {
   m.forEach(function (e) {
@@ -25527,8 +25527,8 @@ var seedrandomModule = /*#__PURE__*/_mergeNamespaces({
   default: index
 }, [seedrandomExports]);
 
-// Copyright (c) 2025 UXtechLab.
-// Originally created by @taekie. Licensed under the MIT License. See LICENSE for details.
+// Copyright (c) 2025 UXtechLab. All Rights Reserved.
+// Originally created by @taekie. Released under the MIT License. See LICENSE for details.
 /**
  * D3 Bundle Utility
  *
@@ -25565,8 +25565,8 @@ const d3 = Object.assign(
 // This allows usage like: d3.seedrandom('myseed')
 d3.seedrandom = index || seedrandomModule;
 
-// Copyright (c) 2025 UXtechLab.
-// Originally created by @taekie. Licensed under the MIT License. See LICENSE for details.
+// Copyright (c) 2025 UXtechLab. All Rights Reserved.
+// Originally created by @taekie. Released under the MIT License. See LICENSE for details.
 /**
  * PebbleRenderer
  *
@@ -25826,8 +25826,8 @@ class PebbleRenderer {
   }
 }
 
-// Copyright (c) 2025 UXtechLab.
-// Originally created by @taekie. Licensed under the MIT License. See LICENSE for details.
+// Copyright (c) 2025 UXtechLab. All Rights Reserved.
+// Originally created by @taekie. Released under the MIT License. See LICENSE for details.
 /**
  * LabelAdjuster
  *
@@ -26322,8 +26322,8 @@ class LabelAdjuster {
   }
 }
 
-// Copyright (c) 2025 UXtechLab.
-// Originally created by @taekie. Licensed under the MIT License. See LICENSE for details.
+// Copyright (c) 2025 UXtechLab. All Rights Reserved.
+// Originally created by @taekie. Released under the MIT License. See LICENSE for details.
 /**
  * Nesting For Voronoi Utility
  *
@@ -26417,8 +26417,8 @@ function nestingForVoronoi(
   };
 }
 
-// Copyright (c) 2025 UXtechLab.
-// Originally created by @taekie. Licensed under the MIT License. See LICENSE for details.
+// Copyright (c) 2025 UXtechLab. All Rights Reserved.
+// Originally created by @taekie. Released under the MIT License. See LICENSE for details.
 /**
  * VoronoiBubble Helpers
  *
@@ -26560,16 +26560,29 @@ const VoronoiBubbleHelpers = {
    * @param {string} desc - Description (unused but kept for API compatibility)
    * @returns {string} Hex color string
    */
-  colorvariation: function (color, vdomain, value, desc) {
+  // mode: 'standard'(기본 — 형제간 명도 대비를 살린 v1 룩) | 'subtle'(채도 캡 +
+  // 낮은 대비의 차분한 룩) | 'strong'(발표용 강한 대비)
+  colorvariation: function (color, vdomain, value, mode = "standard") {
     const domain = d3.extent(vdomain);
     if (domain[0] === domain[1]) return d3.hsl(color).formatHex();
-    let vScale = d3.scaleLinear().domain(domain).range([0.35, 0.85]);
     let c = d3.hsl(color);
-    if (c.l > 0.76) c.l = 0.76;
-    c.s = Math.min(c.s, 0.65);
-    c.l += (0.55 - vScale(value)) * 0.06;
-    if (c.l > 0.8) c.l = 0.8;
-    if (c.l < 0.28) c.l = 0.28;
+    if (mode === "subtle") {
+      const vScale = d3.scaleLinear().domain(domain).range([0.35, 0.85]);
+      if (c.l > 0.76) c.l = 0.76;
+      c.s = Math.min(c.s, 0.65);
+      c.l += (0.55 - vScale(value)) * 0.06;
+      if (c.l > 0.8) c.l = 0.8;
+      if (c.l < 0.28) c.l = 0.28;
+      return c.formatHex();
+    }
+    // standard/strong: 채도와 형제간 대비는 v1대로 살리되, 밝아지는 방향만
+    // 감쇠해 최소값 셀이 하얗게 뜨는 문제를 막는다.
+    const spread = mode === "strong" ? 0.14 : 0.1;
+    const vScale = d3.scaleLinear().domain(domain).range([0.3, 1]);
+    if (c.l > 0.78) c.l = 0.78;
+    const delta = (0.5 - vScale(value)) * spread;
+    c.l += delta > 0 ? delta * 0.6 : delta;
+    if (c.l > 0.82) c.l = 0.82;
     return c.formatHex();
   },
 
@@ -26590,16 +26603,16 @@ const VoronoiBubbleHelpers = {
     } else if (hierarchy.depth === 2) {
       hierarchy.color = this.colorvariation(
         hierarchy.parent.color,
-        self._colorVariationDomains?.[2] ?? hierarchy.parent.children.map((d) => d.value),
+        this._variationDomain(self, hierarchy, 2),
         hierarchy.value,
-        hierarchy.depth + hierarchy.data.key
+        self.params?.colorVariation ?? "standard"
       );
     } else if (hierarchy.depth === 3) {
       hierarchy.color = this.colorvariation(
         hierarchy.parent.color,
-        self._colorVariationDomains?.[3] ?? hierarchy.parent.children.map((d) => d.value),
+        this._variationDomain(self, hierarchy, 3),
         hierarchy.value,
-        hierarchy.depth + hierarchy.data.key
+        self.params?.colorVariation ?? "standard"
       );
       if (self.params.colorFunc) {
         const originalData = self.data.filter(
@@ -26624,6 +26637,16 @@ const VoronoiBubbleHelpers = {
     if (hierarchy.children) {
       hierarchy.children.forEach((child) => this.colorHierarchy(self, child));
     }
+  },
+
+  // 'subtle'은 차트 전역 값 분포(그룹 간 음영 일관성), 그 외 모드는 형제간
+  // 분포(그룹 내 대비 극대화 — v1 룩)를 변주 도메인으로 쓴다.
+  _variationDomain: function (self, hierarchy, depth) {
+    const mode = self.params?.colorVariation ?? "standard";
+    if (mode === "subtle" && self._colorVariationDomains?.[depth]) {
+      return self._colorVariationDomains[depth];
+    }
+    return hierarchy.parent.children.map((d) => d.value);
   },
 
   // === Sentiment / diverging color scale ===
@@ -27441,8 +27464,8 @@ const VoronoiBubbleHelpers = {
   }
 };
 
-// Copyright (c) 2025 UXtechLab.
-// Originally created by @taekie. Licensed under the MIT License. See LICENSE for details.
+// Copyright (c) 2025 UXtechLab. All Rights Reserved.
+// Originally created by @taekie. Released under the MIT License. See LICENSE for details.
 /**
  * PopupHelpers
  *
@@ -27821,8 +27844,8 @@ svg.vb-hover-enabled .vb-cell[data-depth="3"]:hover {
 `;
 }
 
-// Copyright (c) 2025 UXtechLab.
-// Originally created by @taekie. Licensed under the MIT License. See LICENSE for details.
+// Copyright (c) 2025 UXtechLab. All Rights Reserved.
+// Originally created by @taekie. Released under the MIT License. See LICENSE for details.
 /**
  * VoronoiBubble
  *
@@ -27915,6 +27938,7 @@ class VoronoiBubble {
       subgroupLabelScale: 1.05, // depth-2 (subgroup) label multiplier
 
       colors: VoronoiBubble.DEFAULT_COLORS,
+      colorVariation: "standard", // 'standard'(그룹 내 명도 대비, v1 룩) | 'subtle'(차분·전역 일관) | 'strong'(강한 대비)
       seedRandom: 10,
       showGroupLabel: false,
       showPercent: false,
@@ -29107,8 +29131,8 @@ class VoronoiBubble {
   }
 }
 
-// Copyright (c) 2025 UXtechLab.
-// Originally created by @taekie. Licensed under the MIT License. See LICENSE for details.
+// Copyright (c) 2025 UXtechLab. All Rights Reserved.
+// Originally created by @taekie. Released under the MIT License. See LICENSE for details.
 /**
  * Voronoi Popup Utility
  *
@@ -29266,8 +29290,8 @@ function showVoronoiPopup(clicked, options = {}) {
   return popup;
 }
 
-// Copyright (c) 2025 UXtechLab.
-// Originally created by @taekie. Licensed under the MIT License. See LICENSE for details.
+// Copyright (c) 2025 UXtechLab. All Rights Reserved.
+// Originally created by @taekie. Released under the MIT License. See LICENSE for details.
 /**
  * VoronoiBubble Library
  * Main entry point - exports VoronoiBubble as default and helpers as named exports

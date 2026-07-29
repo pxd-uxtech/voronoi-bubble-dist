@@ -5,16 +5,17 @@
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-07-29
+
 ### Added
 
-- `VoronoiBubbleHelpers.createGridPositions()`로 depth 1 그룹을 행 우선 그리드 순서에 배치하는 위치 힌트 helper 추가.
-- `docs/OPEN_CORE_STRATEGY.md`에 정성 데이터 지도, 준비된 계층 데이터 지도, AffinityBubble API와 오픈 렌더러의 역할 분리를 문서화.
-- ChatGPT/Codex/Claude 등 코딩 에이전트가 HTML 산출물을 만들 수 있도록 `skills/voronoi-bubble/` 에이전트 지침 추가.
+- **`colorVariation` 옵션** (`'standard'` | `'subtle'` | `'strong'`): 서브그룹·말단 셀 음영 변주 강도. 기본 `standard`는 그룹 내 형제간 대비와 팔레트 채도를 유지하되, 밝아지는 쪽만 감쇠해 최소값 셀이 하얗게 뜨는 문제를 개선. `subtle`은 차트 전역 분포 기준의 차분한 음영(채도 캡), `strong`은 발표용 강한 대비.
+- **서브그룹 라벨 phrase 줄바꿈**: 서브그룹 라벨을 짧은 헤딩으로 취급해 최대 2줄로 균형 배치.
 
 ### Changed
 
-- 배포 저장소의 번들, 예제, 문서, 에이전트 지침 라이선스를 MIT로 정리.
-- `positions`는 depth별 전역 좌표 힌트로 설명하고, 항목 매칭은 `depth + key`만 사용하도록 문서화.
+- **배포 라이선스 MIT 전환**: 배포 번들과 문서가 MIT로 제공됩니다 (Copyright UXtechLab, 원저작자 @taekie). 소스 헤더·빌드 배너·package.json의 BUSL-1.1 표기를 MIT로 갱신. (소스 저장소는 당분간 비공개 유지)
+
 
 ## [2.0.1] - 2026-07-26
 
@@ -60,7 +61,7 @@
 ### Notes
 
 - 기존에 배포된 차트가 참조하는 **커밋·태그 핀 CDN URL은 계속 동작합니다.** 마이그레이션은 URL을 v2로 올릴 때 하면 됩니다.
-- 이 배포 저장소의 사전 빌드 번들, 예제, 문서, 에이전트 지침은 MIT License로 공개됩니다.
+- 라이선스는 BUSL-1.1 유지 (Change Date 2029-01-01, Change License MIT).
 
 ---
 

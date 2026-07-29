@@ -205,6 +205,7 @@ document.getElementById('chart').appendChild(svg);
 |---|---|---|---|
 | `colors` | `string[]` \| `string` | `VoronoiBubble.DEFAULT_COLORS` (내장 파스텔 팔레트 107색) | 그룹 크기 내림차순으로 배정되는 팔레트. hex 배열 또는 내장 프리셋 이름: `'pastel'`(기본) · `'starryNight'`(반 고흐, 별이 빛나는 밤) · `'waterLilies'`(모네, 수련) · `'wave'`(호쿠사이, 큰 파도) · `'kiss'`(클림트, 키스) · `'sunrise'`(모네, 인상·해돋이). 명화 프리셋은 그림 원색의 hue·명암 관계를 보존한 채 파스텔 톤 대역으로 정규화한 것. 전체 목록은 `VoronoiBubble.PALETTES` |
 | `groupColors` | `{key, color}[]` | `[]` | 특정 그룹의 색을 직접 지정 (팔레트보다 우선) |
+| `colorVariation` | `'standard'\|'subtle'\|'strong'` | `'standard'` | 서브그룹·말단 셀의 음영 변주 강도. `standard`는 그룹 내 형제끼리 명도 대비를 살리고 팔레트 채도를 보존, `subtle`은 차트 전역 값 분포 기준의 차분한 음영(채도 캡 포함), `strong`은 발표용 강한 대비 |
 | `colorFunc` | `function\|null` | `null` | 말단(depth-3) 셀 색을 직접 계산 |
 | `sentiment` | `string\|{field, domain}\|null` | `null` | 수치 필드를 내장 다이버징 팔레트에 연결 |
 | `getCellColors` | `function\|null` | `null` | 렌더 후 실제 적용된 색 목록을 돌려받는 콜백 |

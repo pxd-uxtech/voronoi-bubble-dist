@@ -1,0 +1,38 @@
+{
+  "name": "voronoi-bubble",
+  "version": "0.1.0",
+  "description": "Create easy Voronoi treemap HTML with optional semantic position hints.",
+  "author": {
+    "name": "UXtechLab",
+    "url": "https://github.com/pxd-uxtech"
+  },
+  "homepage": "https://github.com/pxd-uxtech/voronoi-bubble-dist",
+  "repository": "https://github.com/pxd-uxtech/voronoi-bubble-dist",
+  "license": "MIT",
+  "keywords": [
+    "voronoi",
+    "treemap",
+    "visualization",
+    "svg",
+    "data-visualization"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "VoronoiBubble",
+    "shortDescription": "Generate readable Voronoi treemap HTML examples.",
+    "longDescription": "Helps ChatGPT and Codex turn tidy-style flat rows into easy Voronoi treemap examples with VoronoiBubble, including direct group/subgroup/item/size mapping, semantic position hints such as UMAP coordinates, simple group colors, positive/negative sentiment colormaps, label-overlap-aware rendering, CDN-based single-file HTML, local bundle variants, and popup templates.",
+    "developerName": "UXtechLab",
+    "category": "Data Analysis",
+    "capabilities": [
+      "Code generation",
+      "Data visualization"
+    ],
+    "websiteURL": "https://github.com/pxd-uxtech/voronoi-bubble-dist",
+    "defaultPrompt": [
+      "Create a Voronoi treemap HTML chart from this data with click popups.",
+      "Map these columns to group, subgroup, item, and size for VoronoiBubble.",
+      "Generate an offline VoronoiBubble HTML example using the local UMD bundle."
+    ],
+    "brandColor": "#3B82F6"
+  }
+}

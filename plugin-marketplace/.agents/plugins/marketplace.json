@@ -1,0 +1,20 @@
+{
+  "name": "voronoi-bubble-local",
+  "interface": {
+    "displayName": "VoronoiBubble Local"
+  },
+  "plugins": [
+    {
+      "name": "voronoi-bubble",
+      "source": {
+        "source": "local",
+        "path": "./plugins/voronoi-bubble"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Data Analysis"
+    }
+  ]
+}

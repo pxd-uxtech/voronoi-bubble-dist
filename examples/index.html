@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <!-- Copyright (c) 2025 UXtechLab. VoronoiBubble — MIT License. See LICENSE. -->
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>VoronoiBubble — Examples</title>
   <style>
-    body { margin: 0; font-family: -apple-system, 'KoddiUD OnGothic', sans-serif; background: #fff; color: #222; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fff; color: #222; }
     .wrap { max-width: 1000px; margin: 0 auto; padding: 24px 16px; }
     h1 { font-size: 24px; margin: 0 0 8px; }
     p.lead { margin: 0 0 24px; color: #666; }
@@ -20,32 +20,44 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>VoronoiBubble 예제</h1>
-    <p class="lead"><code>npm run build</code> 후 <code>npm run dev</code>로 띄운 뒤 아래 예제를 여세요.</p>
+    <h1>VoronoiBubble Examples</h1>
+    <p class="lead">Run <code>npm run build</code>, then <code>npm run dev</code>, and open one of these examples.</p>
     <ul>
       <li>
         <a href="basic.html">Basic</a>
-        <span>가장 기본적인 렌더 — 제목·캡션·그룹 라벨·퍼센트 표시.</span>
+        <span>Basic tidy rows -> Voronoi treemap rendering with title, caption, group labels, and percentages.</span>
       </li>
       <li>
         <a href="sentiment.html">Sentiment</a>
-        <span><code>sentiment</code> 옵션으로 1~5 점수 필드를 다이버징 컬러맵에 연결.</span>
+        <span>Map a 1-5 rating field to the built-in red-yellow-green sentiment colormap.</span>
+      </li>
+      <li>
+        <a href="semantic-positions.html">Semantic Positions</a>
+        <span>Use <code>positions</code> to add UMAP-like placement to a Voronoi treemap.</span>
+      </li>
+      <li>
+        <a href="budget-map.html">Budget Map</a>
+        <span>Prepared hierarchy example: departments, programs, projects, and budgets.</span>
+      </li>
+      <li>
+        <a href="palette-presets.html">Palette Presets</a>
+        <span>Use <code>colors: "waterLilies"</code> and other built-in palette strings.</span>
       </li>
       <li>
         <a href="custom-labels.html">Custom Labels</a>
-        <span><code>renderGroupLabel</code>로 그룹 라벨을 직접 HTML로 그리기 (헤일로 + 퍼센트).</span>
+        <span>Render group labels with custom HTML.</span>
       </li>
       <li>
         <a href="popup-hover.html">Popup &amp; Hover</a>
-        <span><code>onClick</code> 팝업과 <code>onHover</code> 콜백 — 추가 CSS 없이 동작.</span>
+        <span>Use <code>onClick</code> popups and <code>onHover</code> callbacks.</span>
       </li>
       <li>
         <a href="popup-simple.html">Simple Popup</a>
-        <span><code>showVoronoiPopup</code>만 사용한 최소 클릭 팝업 예제.</span>
+        <span>A minimal click popup example using <code>showVoronoiPopup</code>.</span>
       </li>
       <li>
         <a href="playground.html">Playground</a>
-        <span>항목 수·캔버스 크기·<code>fontScale</code>을 슬라이더로 바꿔가며 폰트 정규화 확인.</span>
+        <span>Adjust item count, canvas size, and <code>fontScale</code> interactively.</span>
       </li>
     </ul>
   </div>

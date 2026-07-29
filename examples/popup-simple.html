@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <!-- Copyright (c) 2025 UXtechLab. VoronoiBubble — MIT License. See LICENSE. -->
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>VoronoiBubble — Simple Popup</title>
   <style>
-    body { margin: 0; font-family: -apple-system, 'KoddiUD OnGothic', sans-serif; background: #fff; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fff; }
     .wrap { max-width: 1000px; margin: 0 auto; padding: 24px 16px; }
     #chart svg { width: 100%; height: auto; }
   </style>
@@ -18,21 +18,21 @@
     import { VoronoiBubble, showVoronoiPopup } from '../dist/voronoi-bubble.standalone.js';
 
     const data = [
-      { group: '긍정', subgroup: '배송', item: '배송이 빨라요', size: 30, review: '주문 다음 날 바로 도착했습니다.' },
-      { group: '긍정', subgroup: '품질', item: '재질이 좋아요', size: 25, review: '마감이 깔끔하고 오래 쓸 것 같습니다.' },
-      { group: '보통', subgroup: '가격', item: '가격은 무난해요', size: 18, review: '할인하면 다시 구매할 의향이 있습니다.' },
-      { group: '부정', subgroup: '가격', item: '비싸요', size: 15, review: '비슷한 상품보다 가격이 높게 느껴집니다.' },
-      { group: '부정', subgroup: 'AS', item: '응답이 느려요', size: 8, review: '문의 후 답변까지 시간이 오래 걸렸습니다.' },
+      { group: 'Positive', subgroup: 'Delivery', item: 'Fast delivery', size: 30, review: 'The order arrived the next day.' },
+      { group: 'Positive', subgroup: 'Quality', item: 'Good material', size: 25, review: 'The finish feels clean and durable.' },
+      { group: 'Neutral', subgroup: 'Price', item: 'Fair price', size: 18, review: 'I would buy again during a promotion.' },
+      { group: 'Negative', subgroup: 'Price', item: 'Too expensive', size: 15, review: 'The price feels high compared with similar products.' },
+      { group: 'Negative', subgroup: 'Support', item: 'Slow response', size: 8, review: 'It took too long to get a reply.' },
     ];
 
     const svg = new VoronoiBubble().render(data, {
       width: 1200,
       height: 900,
-      title: '리뷰 토픽 맵',
+      title: 'Review Topic Map',
       showGroupLabel: true,
       showPercent: true,
       onClick: (cell) => showVoronoiPopup(cell, {
-        format: '<b>{item}</b><br>{group} / {subgroup}<br>건수: {size}<br>{review}'
+        format: '<b>{item}</b><br>{group} / {subgroup}<br>Count: {size}<br>{review}'
       })
     });
 

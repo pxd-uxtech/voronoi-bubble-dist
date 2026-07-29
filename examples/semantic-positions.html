@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<!-- Copyright (c) 2025 UXtechLab. VoronoiBubble — MIT License. See LICENSE. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VoronoiBubble — Semantic Positions</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fff; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+    #chart svg { width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  <div class="wrap"><div id="chart"></div></div>
+
+  <script type="module">
+    import { VoronoiBubble } from '../dist/voronoi-bubble.standalone.js';
+
+    const data = [
+      { group: 'Product', subgroup: 'Quality', item: 'Durable material', size: 34 },
+      { group: 'Product', subgroup: 'Quality', item: 'Clean finish', size: 24 },
+      { group: 'Product', subgroup: 'Fit', item: 'Runs small', size: 18 },
+      { group: 'Product', subgroup: 'Fit', item: 'Comfortable fit', size: 22 },
+      { group: 'Experience', subgroup: 'Delivery', item: 'Arrived early', size: 30 },
+      { group: 'Experience', subgroup: 'Delivery', item: 'Tracking was clear', size: 17 },
+      { group: 'Experience', subgroup: 'Support', item: 'Helpful answer', size: 20 },
+      { group: 'Experience', subgroup: 'Support', item: 'Slow reply', size: 13 },
+      { group: 'Commercial', subgroup: 'Price', item: 'Good value', size: 26 },
+      { group: 'Commercial', subgroup: 'Price', item: 'Too expensive', size: 18 },
+      { group: 'Commercial', subgroup: 'Promotion', item: 'Coupon helped', size: 15 },
+      { group: 'Commercial', subgroup: 'Promotion', item: 'Bundle deal', size: 12 },
+    ];
+
+    // These coordinates could come from UMAP over subgroup labels.
+    // VoronoiBubble normalizes positions by depth, so only relative direction matters.
+    const positions = [
+      { key: 'Product', depth: 1, x: 0.15, y: 0.25 },
+      { key: 'Experience', depth: 1, x: 0.78, y: 0.25 },
+      { key: 'Commercial', depth: 1, x: 0.48, y: 0.82 },
+      { key: 'Quality', depth: 2, x: 0.10, y: 0.16 },
+      { key: 'Fit', depth: 2, x: 0.24, y: 0.38 },
+      { key: 'Delivery', depth: 2, x: 0.82, y: 0.16 },
+      { key: 'Support', depth: 2, x: 0.72, y: 0.40 },
+      { key: 'Price', depth: 2, x: 0.42, y: 0.76 },
+      { key: 'Promotion', depth: 2, x: 0.62, y: 0.86 },
+    ];
+
+    const svg = new VoronoiBubble().render(data, {
+      width: 1200,
+      height: 900,
+      title: 'Semantic Position Hints',
+      caption: 'Hierarchy and area from a Voronoi treemap, UMAP-like placement from positions',
+      colors: 'starryNight',
+      positions,
+      showGroupLabel: true,
+      showPercent: true,
+      labelMode: 'faded',
+      seedRandom: 'semantic-positions',
+    });
+
+    document.getElementById('chart').appendChild(svg);
+  </script>
+</body>
+</html>

@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<!-- Copyright (c) 2025 UXtechLab. VoronoiBubble — BUSL-1.1. See LICENSE. -->
-<html lang="ko">
+<!-- Copyright (c) 2025 UXtechLab. VoronoiBubble — MIT License. See LICENSE. -->
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>VoronoiBubble — Sentiment</title>
   <style>
-    body { margin: 0; font-family: -apple-system, 'KoddiUD OnGothic', sans-serif; background: #fff; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fff; }
     .wrap { max-width: 1000px; margin: 0 auto; padding: 24px 16px; }
     #chart svg { width: 100%; height: auto; }
   </style>
@@ -14,23 +14,23 @@
 <body>
   <div class="wrap"><div id="chart"></div></div>
   <script type="module">
-    // 로컬 개발: npm run build 후 npm run dev
-    // CDN 사용 시: https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.1/dist/voronoi-bubble.standalone.js
+    // Local development: run npm run build, then npm run dev.
+    // CDN: https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.1/dist/voronoi-bubble.standalone.js
     import { VoronoiBubble } from '../dist/voronoi-bubble.standalone.js';
 
-    // s: 1~5 감성 점수 필드 (별점·만족도 등)
+    // score: 1-5 sentiment/rating field.
     const data = [
-      { group: '긍정', subgroup: '배송', item: '배송이 빨라요', size: 30, s: 5 },
-      { group: '긍정', subgroup: '배송', item: '포장이 꼼꼼해요', size: 20, s: 4 },
-      { group: '긍정', subgroup: '품질', item: '재질이 좋아요', size: 25, s: 5 },
-      { group: '부정', subgroup: '가격', item: '비싸요', size: 15, s: 2 },
-      { group: '부정', subgroup: '가격', item: '배송비 부담', size: 10, s: 2 },
-      { group: '부정', subgroup: 'AS', item: '응답이 느려요', size: 5, s: 1 },
+      { group: 'Positive', subgroup: 'Delivery', item: 'Fast delivery', size: 30, score: 5 },
+      { group: 'Positive', subgroup: 'Quality', item: 'Good material', size: 25, score: 5 },
+      { group: 'Positive', subgroup: 'Packaging', item: 'Careful packaging', size: 18, score: 4 },
+      { group: 'Neutral', subgroup: 'Price', item: 'Fair price', size: 16, score: 3 },
+      { group: 'Negative', subgroup: 'Price', item: 'Too expensive', size: 15, score: 2 },
+      { group: 'Negative', subgroup: 'Support', item: 'Slow response', size: 8, score: 1 },
     ];
 
     const svg = new VoronoiBubble().render(data, {
-      width: 1200, height: 900, title: '감성 컬러맵',
-      sentiment: 's',            // 점수 필드 → 다이버징 팔레트 자동
+      width: 1200, height: 900, title: 'Sentiment Colormap',
+      sentiment: 'score',
       showGroupLabel: true,
     });
     document.getElementById('chart').appendChild(svg);

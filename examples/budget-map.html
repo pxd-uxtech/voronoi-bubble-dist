@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<!-- Copyright (c) 2025 UXtechLab. VoronoiBubble — MIT License. See LICENSE. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VoronoiBubble — Budget Map</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fff; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+    #chart svg { width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  <div class="wrap"><div id="chart"></div></div>
+
+  <script type="module">
+    import { VoronoiBubble, VoronoiBubbleHelpers } from '../dist/voronoi-bubble.standalone.js';
+
+    const data = [
+      { group: 'Health', subgroup: 'Hospitals', item: 'Regional care', size: 42 },
+      { group: 'Health', subgroup: 'Hospitals', item: 'Emergency capacity', size: 28 },
+      { group: 'Health', subgroup: 'Prevention', item: 'Vaccination', size: 22 },
+      { group: 'Health', subgroup: 'Prevention', item: 'Screening', size: 18 },
+      { group: 'Education', subgroup: 'Schools', item: 'Teacher grants', size: 35 },
+      { group: 'Education', subgroup: 'Schools', item: 'Facilities', size: 30 },
+      { group: 'Education', subgroup: 'Research', item: 'University labs', size: 26 },
+      { group: 'Education', subgroup: 'Research', item: 'Scholarships', size: 14 },
+      { group: 'Transport', subgroup: 'Transit', item: 'Metro upgrades', size: 38 },
+      { group: 'Transport', subgroup: 'Transit', item: 'Bus electrification', size: 20 },
+      { group: 'Transport', subgroup: 'Roads', item: 'Bridge repair', size: 24 },
+      { group: 'Transport', subgroup: 'Roads', item: 'Safety program', size: 16 },
+      { group: 'Climate', subgroup: 'Energy', item: 'Grid storage', size: 32 },
+      { group: 'Climate', subgroup: 'Energy', item: 'Solar incentives', size: 24 },
+      { group: 'Climate', subgroup: 'Resilience', item: 'Flood defenses', size: 20 },
+      { group: 'Climate', subgroup: 'Resilience', item: 'Urban trees', size: 12 },
+    ];
+
+    const groups = ['Health', 'Education', 'Transport', 'Climate'];
+
+    const svg = new VoronoiBubble().render(data, {
+      width: 1200,
+      height: 900,
+      title: 'Government Budget Map',
+      caption: 'Prepared hierarchy example: department -> program -> project',
+      colors: 'waterLilies',
+      positions: VoronoiBubbleHelpers.createGridPositions(groups, { depth: 1 }),
+      showGroupLabel: true,
+      showPercent: true,
+      seedRandom: 'budget-map',
+    });
+
+    document.getElementById('chart').appendChild(svg);
+  </script>
+</body>
+</html>

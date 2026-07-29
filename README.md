@@ -163,10 +163,6 @@ Build outputs are published to [`pxd-uxtech/voronoi-bubble-dist`](https://github
 
 ## License
 
-[MIT](LICENSE) — Licensor: UXtechLab. Originally created by [@taekie](https://github.com/taekie).
-
-- Non-commercial and personal use is free.
-- Commercial use requires a separate UXtechLab license.
-- This version automatically converts to MIT on **2029-01-01**.
+[MIT](LICENSE) — Copyright (c) 2025 UXtechLab. Originally created by [@taekie](https://github.com/taekie).
 
 See [LICENSE](LICENSE) for the full terms.

@@ -88,6 +88,31 @@ sentimentChart = {
 }
 ```
 
+**셀 6 — JavaScript 셀 (positions로 그룹 위치 고정, 선택)**
+
+```javascript
+positionedChart = {
+  // {key, depth, x, y} — 0~1 상대 좌표. 지정하지 않은 그룹은 시드 기반 자동 배치.
+  // 임베딩+UMAP 좌표를 그대로 넣으면 의미상 가까운 주제가 화면에서도 가까워진다
+  // (docs/API.md '위치 제어와 재현성' 참조).
+  const positions = [
+    { key: "Shipping", depth: 1, x: 0.15, y: 0.5 },
+    { key: "Product Quality", depth: 1, x: 0.5, y: 0.2 },
+    { key: "App Experience", depth: 1, x: 0.85, y: 0.5 }
+  ];
+  const svg = new VB.VoronoiBubble().render(data, {
+    width: 1200,
+    height: 900,
+    title: "Same data, groups pinned with `positions`",
+    caption: "Shipping left · Product Quality top · App Experience right — layout stays put across re-renders",
+    positions,
+    seedRandom: "demo",
+    showGroupLabel: true
+  });
+  return svg;
+}
+```
+
 ---
 
 메모

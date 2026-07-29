@@ -12,7 +12,7 @@ It works for qualitative topic maps from reviews, surveys, and interviews, but i
 
 - **Three-level Voronoi treemap**: `group` (depth 1) -> `subgroup` (depth 2) -> `item` (depth 3), with separate labels and pebble-style outlines for upper levels.
 - **Tidy-style flat rows**: render `{ group, subgroup, item, size }[]` directly. Use `levels` and `value` when your column names differ.
-- **Easy colors and sentiment colormaps**: set `groupColors` for direct group colors, or use `sentiment: "score"` to map numeric ratings to a red-yellow-green diverging palette.
+- **Easy colors and sentiment colormaps**: use `colors: "waterLilies"` for built-in palette presets, set `groupColors` for direct group colors, or use `sentiment: "score"` to map numeric ratings to a red-yellow-green diverging palette.
 - **Positioning hints and readable labels**: use `positions` for depth-aware relative placement, or `VoronoiBubbleHelpers.createGridPositions()` for a stable grid order. Default label adjustment reduces overlap inside cell boundaries.
 - **Popups and hover callbacks**: `onClick` with `showVoronoiPopup` works without extra CSS; `onHover` and `onSubgroupLabelHover` let you attach custom tooltips.
 - **Responsive SVG**: generated charts use `viewBox`, `width: 100%`, and `height: auto`.
@@ -42,11 +42,9 @@ It works for qualitative topic maps from reviews, surveys, and interviews, but i
     caption: 'Review topic map',
     showGroupLabel: true,
     showPercent: true,
-    groupColors: {
-      Positive: '#4CAF50',
-      Neutral: '#FFC107',
-      Negative: '#F44336',
-    },
+    colors: 'waterLilies',
+    // Use groupColors when you want exact group colors:
+    // groupColors: { Positive: '#4CAF50', Neutral: '#FFC107', Negative: '#F44336' },
     sentiment: 'score',
     positions: VoronoiBubbleHelpers.createGridPositions(
       ['Positive', 'Neutral', 'Negative'],

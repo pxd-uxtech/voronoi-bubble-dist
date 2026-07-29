@@ -18,7 +18,7 @@ v2.0 기준 전체 API 레퍼런스입니다. v1에서 올라오는 경우 [MIGR
 ## 로드하기
 
 ```
-https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.1/dist/voronoi-bubble.standalone.js
+https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.1/dist/voronoi-bubble.standalone.js
 ```
 
 
@@ -26,14 +26,14 @@ https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.1/dist/voronoi-b
 
 ```javascript
 import { VoronoiBubble, showVoronoiPopup }
-  from 'https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.1/dist/voronoi-bubble.standalone.js';
+  from 'https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.1/dist/voronoi-bubble.standalone.js';
 ```
 
 Observable에서는 동적 import를 씁니다.
 
 ```javascript
 {
-  const m = await import("https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.1/dist/voronoi-bubble.standalone.js");
+  const m = await import("https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.1/dist/voronoi-bubble.standalone.js");
   VoronoiBubble = m.VoronoiBubble;
   showVoronoiPopup = m.showVoronoiPopup;
   return m;
@@ -43,7 +43,7 @@ Observable에서는 동적 import를 씁니다.
 ### `<script>` 태그 (UMD, `file://`에서도 동작)
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.1/dist/voronoi-bubble.standalone.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.1/dist/voronoi-bubble.standalone.umd.js"></script>
 <script>
   const { VoronoiBubble, showVoronoiPopup } = VoronoiBubbleModule;
 </script>
@@ -625,7 +625,7 @@ new VoronoiBubble().render(data, { seedRandom: 'v2-report' });
 
 ### `positions`
 
-`{key, depth, x, y}` 배열로 특정 셀이 놓일 방향을 지시합니다. 좌표는 **depth별 입력 범위를 자동으로 0.15~0.85로 정규화**하므로 절대 픽셀이 아니라 **상대 위치**만 의미가 있습니다. depth 2를 UMAP으로 만들었다면 모든 subgroup을 한 번에 투영한 좌표를 그대로 넣으면 됩니다.
+`{key, depth, x, y}` 배열로 특정 셀이 놓일 방향을 지시합니다. 좌표는 **depth별 입력 범위를 자동으로 0.15~0.85로 정규화**하므로 절대 픽셀이 아니라 **상대 위치**만 의미가 있습니다. **일부 항목만 지정해도 됩니다** — `positions`에 없는 항목은 시드 기반 무작위 초기 위치로 배치됩니다. depth 2를 UMAP으로 만들었다면 모든 subgroup을 한 번에 투영한 좌표를 그대로 넣으면 됩니다.
 
 ```javascript
 new VoronoiBubble().render(data, {

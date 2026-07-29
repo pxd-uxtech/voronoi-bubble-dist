@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<!-- Copyright (c) 2025 UXtechLab. VoronoiBubble — MIT License. See LICENSE. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VoronoiBubble — Book Taxonomy</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fff; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+    #chart svg { width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  <div class="wrap"><div id="chart"></div></div>
+
+  <script type="module">
+    import { VoronoiBubble } from '../dist/voronoi-bubble.standalone.js';
+
+    // Document/catalog taxonomy — any category → genre → title hierarchy works.
+    // `levels` maps custom column names, `value` picks the weight column.
+    const catalog = [
+      { section: 'Fiction', genre: 'Mystery & Thriller', title: 'The Harbor Ledger', sold: 42 },
+      { section: 'Fiction', genre: 'Mystery & Thriller', title: 'Glass Alibi', sold: 31 },
+      { section: 'Fiction', genre: 'Science Fiction', title: 'Lattice of Suns', sold: 38 },
+      { section: 'Fiction', genre: 'Science Fiction', title: 'The Quiet Orbit', sold: 22 },
+      { section: 'Fiction', genre: 'Literary', title: 'Winter Fig', sold: 26 },
+      { section: 'Fiction', genre: 'Romance', title: 'Letters at Noon', sold: 19 },
+      { section: 'Non-Fiction', genre: 'Biography', title: 'A Cartographer of Storms', sold: 34 },
+      { section: 'Non-Fiction', genre: 'Popular Science', title: 'The Cell at Night', sold: 29 },
+      { section: 'Non-Fiction', genre: 'Popular Science', title: 'Counting the Sky', sold: 17 },
+      { section: 'Non-Fiction', genre: 'History', title: 'Salt Roads', sold: 23 },
+      { section: 'Non-Fiction', genre: 'Self-Improvement', title: 'Deep Mornings', sold: 27 },
+      { section: "Children's", genre: 'Picture Books', title: 'The Umbrella Whale', sold: 33 },
+      { section: "Children's", genre: 'Picture Books', title: 'Mole and the Moon', sold: 21 },
+      { section: "Children's", genre: 'Middle Grade', title: 'The Ferryboat Club', sold: 18 },
+      { section: "Children's", genre: 'Middle Grade', title: 'Peppermint Detectives', sold: 12 },
+    ];
+
+    const svg = new VoronoiBubble().render(catalog, {
+      width: 1200, height: 900,
+      levels: ['section', 'genre', 'title'],   // custom column names, no renaming needed
+      value: 'sold',
+      title: 'Publisher catalog — copies sold this season',
+      caption: 'section → genre → title · cell area = copies sold',
+      showGroupLabel: true, showPercent: true,
+      labelMode: 'show',
+    });
+    document.getElementById('chart').appendChild(svg);
+  </script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 /*!
  * VoronoiBubble (@pxd-uxtech/voronoi-bubble)
  * Originally created by @taekie
- * Copyright (c) 2025 UXtechLab. All Rights Reserved.
+ * Copyright (c) 2025 UXtechLab.
  * Released under the MIT License. See LICENSE for details.
  */
 import * as d3Core from 'd3';
@@ -10,7 +10,7 @@ import * as d3VoronoiMap from 'd3-voronoi-map';
 import * as d3VoronoiTreemap from 'd3-voronoi-treemap';
 import * as seedrandomModule from 'seedrandom';
 
-// Copyright (c) 2025 UXtechLab. All Rights Reserved.
+// Copyright (c) 2025 UXtechLab.
 // Originally created by @taekie. Released under the MIT License. See LICENSE for details.
 /**
  * D3 Bundle Utility
@@ -48,7 +48,7 @@ const d3 = Object.assign(
 // This allows usage like: d3.seedrandom('myseed')
 d3.seedrandom = seedrandomModule.default || seedrandomModule;
 
-// Copyright (c) 2025 UXtechLab. All Rights Reserved.
+// Copyright (c) 2025 UXtechLab.
 // Originally created by @taekie. Released under the MIT License. See LICENSE for details.
 /**
  * PebbleRenderer
@@ -309,7 +309,7 @@ class PebbleRenderer {
   }
 }
 
-// Copyright (c) 2025 UXtechLab. All Rights Reserved.
+// Copyright (c) 2025 UXtechLab.
 // Originally created by @taekie. Released under the MIT License. See LICENSE for details.
 /**
  * LabelAdjuster
@@ -805,7 +805,7 @@ class LabelAdjuster {
   }
 }
 
-// Copyright (c) 2025 UXtechLab. All Rights Reserved.
+// Copyright (c) 2025 UXtechLab.
 // Originally created by @taekie. Released under the MIT License. See LICENSE for details.
 /**
  * Nesting For Voronoi Utility
@@ -900,7 +900,7 @@ function nestingForVoronoi(
   };
 }
 
-// Copyright (c) 2025 UXtechLab. All Rights Reserved.
+// Copyright (c) 2025 UXtechLab.
 // Originally created by @taekie. Released under the MIT License. See LICENSE for details.
 /**
  * VoronoiBubble Helpers
@@ -1947,7 +1947,7 @@ const VoronoiBubbleHelpers = {
   }
 };
 
-// Copyright (c) 2025 UXtechLab. All Rights Reserved.
+// Copyright (c) 2025 UXtechLab.
 // Originally created by @taekie. Released under the MIT License. See LICENSE for details.
 /**
  * PopupHelpers
@@ -2327,7 +2327,7 @@ svg.vb-hover-enabled .vb-cell[data-depth="3"]:hover {
 `;
 }
 
-// Copyright (c) 2025 UXtechLab. All Rights Reserved.
+// Copyright (c) 2025 UXtechLab.
 // Originally created by @taekie. Released under the MIT License. See LICENSE for details.
 /**
  * VoronoiBubble
@@ -3614,7 +3614,7 @@ class VoronoiBubble {
   }
 }
 
-// Copyright (c) 2025 UXtechLab. All Rights Reserved.
+// Copyright (c) 2025 UXtechLab.
 // Originally created by @taekie. Released under the MIT License. See LICENSE for details.
 /**
  * Voronoi Popup Utility
@@ -3773,7 +3773,7 @@ function showVoronoiPopup(clicked, options = {}) {
   return popup;
 }
 
-// Copyright (c) 2025 UXtechLab. All Rights Reserved.
+// Copyright (c) 2025 UXtechLab.
 // Originally created by @taekie. Released under the MIT License. See LICENSE for details.
 /**
  * VoronoiBubble Library

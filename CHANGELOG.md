@@ -5,6 +5,19 @@
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-07-29
+
+### Added
+
+- **예제 2종**: `examples/feedback-topics.html`(고객 피드백 토픽 맵 — 간판 정성 데이터 유스케이스), `examples/book-taxonomy.html`(`levels`/`value` 커스텀 컬럼 시연).
+
+### Changed
+
+- 저작권 표기에서 MIT와 뉘앙스가 충돌하던 "All Rights Reserved" 문구 제거 (번들 배너·소스 헤더).
+- 문서·스킬·예제의 CDN 핀을 v2.1.1로 정합 (SKILL.md와 API.md의 핀 불일치 해소 — 에이전트 클린룸 관찰에서 발견).
+- `positions` 부분 지정 시 폴백 동작(미지정 항목은 시드 기반 무작위 배치) 문서화.
+
+
 ## [2.1.0] - 2026-07-29
 
 ### Added

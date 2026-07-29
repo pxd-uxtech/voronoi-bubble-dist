@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<!-- Copyright (c) 2025 UXtechLab. VoronoiBubble — MIT License. See LICENSE. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VoronoiBubble — Customer Feedback Topics</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fff; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+    #chart svg { width: 100%; height: auto; }
+  </style>
+</head>
+<body>
+  <div class="wrap"><div id="chart"></div></div>
+
+  <script type="module">
+    import { VoronoiBubble, showVoronoiPopup } from '../dist/voronoi-bubble.standalone.js';
+
+    // Customer feedback topic map — the flagship qualitative-data use case.
+    // Each row is one recurring opinion; `size` is how many reviews mention it.
+    const data = [
+      { group: 'Shipping', subgroup: 'Delivery speed', item: 'Arrived next day', size: 18 },
+      { group: 'Shipping', subgroup: 'Delivery speed', item: 'Faster than expected', size: 11 },
+      { group: 'Shipping', subgroup: 'Delivery delays', item: 'Took over a week', size: 8 },
+      { group: 'Shipping', subgroup: 'Delivery delays', item: 'No tracking updates', size: 5 },
+      { group: 'Shipping', subgroup: 'Packaging', item: 'Well protected box', size: 9 },
+      { group: 'Shipping', subgroup: 'Packaging', item: 'Bottle arrived leaking', size: 4 },
+      { group: 'Product Quality', subgroup: 'Build quality', item: 'Feels premium', size: 14 },
+      { group: 'Product Quality', subgroup: 'Build quality', item: 'Solid materials', size: 9 },
+      { group: 'Product Quality', subgroup: 'Durability issues', item: 'Broke within a month', size: 7 },
+      { group: 'Product Quality', subgroup: 'Durability issues', item: 'Buttons feel loose', size: 4 },
+      { group: 'Product Quality', subgroup: 'Consistency', item: 'Color differs from photos', size: 6 },
+      { group: 'Pricing', subgroup: 'Value for money', item: 'Great value', size: 13 },
+      { group: 'Pricing', subgroup: 'Value for money', item: 'Would buy again', size: 8 },
+      { group: 'Pricing', subgroup: 'Price increases', item: 'Got more expensive', size: 6 },
+      { group: 'Pricing', subgroup: 'Discounts', item: 'Coupons are generous', size: 5 },
+      { group: 'Support', subgroup: 'Helpful agents', item: 'Solved it right away', size: 10 },
+      { group: 'Support', subgroup: 'Slow responses', item: 'Waited days for a reply', size: 8 },
+      { group: 'Support', subgroup: 'Refund friction', item: 'Refund was complicated', size: 6 },
+      { group: 'App Experience', subgroup: 'Easy ordering', item: 'Checkout is quick', size: 11 },
+      { group: 'App Experience', subgroup: 'App crashes', item: 'App keeps crashing', size: 7 },
+      { group: 'App Experience', subgroup: 'Search gaps', item: 'Search misses items', size: 5 },
+    ];
+    const total = data.reduce((s, d) => s + d.size, 0);
+
+    const svg = new VoronoiBubble().render(data, {
+      width: 1200, height: 900,
+      title: `What ${total} customer reviews talk about`,
+      caption: 'group → subgroup → item · cell area = number of mentions · click a cell for details',
+      showGroupLabel: true, showPercent: true,
+      onClick: (cell) => showVoronoiPopup(cell, {
+        format: '<b>“{item}”</b><br>{subgroup} · {group}<br>{size} mentions',
+      }),
+    });
+    document.getElementById('chart').appendChild(svg);
+  </script>
+</body>
+</html>

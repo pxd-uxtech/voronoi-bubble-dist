@@ -25,7 +25,7 @@ VoronoiBubble은 보로노이 트리맵을 쉽게, 의미 위치까지 반영해
 <div id="chart"></div>
 
 <script type="module">
-  import { VoronoiBubble, VoronoiBubbleHelpers } from 'https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.1/dist/voronoi-bubble.standalone.js';
+  import { VoronoiBubble, VoronoiBubbleHelpers } from 'https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.1/dist/voronoi-bubble.standalone.js';
 
   const data = [
     { group: '긍정', subgroup: '배송', item: '배송이 빨라요',   size: 30 },
@@ -65,7 +65,7 @@ VoronoiBubble은 보로노이 트리맵을 쉽게, 의미 위치까지 반영해
 ## CDN
 
 ```
-https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.1/dist/voronoi-bubble.standalone.js
+https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.1/dist/voronoi-bubble.standalone.js
 ```
 
 

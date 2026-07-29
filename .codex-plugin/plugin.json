@@ -1,7 +1,7 @@
 {
   "name": "voronoi-bubble",
   "version": "0.1.0",
-  "description": "Create VoronoiBubble HTML examples and static visualization workflows from user data.",
+  "description": "Create easy Voronoi treemap HTML from tidy-style rows with positioning hints and readable labels.",
   "author": {
     "name": "UXtechLab",
     "url": "https://github.com/pxd-uxtech"
@@ -19,8 +19,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "VoronoiBubble",
-    "shortDescription": "Generate VoronoiBubble HTML and popup examples.",
-    "longDescription": "Helps ChatGPT, Codex, and coding agents turn tabular data into VoronoiBubble examples, including CDN-based single-file HTML, local bundle variants, popup templates, and data field mapping guidance.",
+    "shortDescription": "Generate readable Voronoi treemap HTML examples.",
+    "longDescription": "Helps ChatGPT, Codex, and coding agents turn tidy-style flat rows into easy Voronoi treemap examples with VoronoiBubble, including direct group/subgroup/item/size mapping, position hints, label-overlap-aware rendering, CDN-based single-file HTML, local bundle variants, and popup templates.",
     "developerName": "UXtechLab",
     "category": "Data Analysis",
     "capabilities": [
@@ -29,7 +29,7 @@
     ],
     "websiteURL": "https://github.com/pxd-uxtech/voronoi-bubble-dist",
     "defaultPrompt": [
-      "Create a VoronoiBubble HTML chart from this data with click popups.",
+      "Create a Voronoi treemap HTML chart from this data with click popups.",
       "Map these columns to group, subgroup, item, and size for VoronoiBubble.",
       "Generate an offline VoronoiBubble HTML example using the local UMD bundle."
     ],

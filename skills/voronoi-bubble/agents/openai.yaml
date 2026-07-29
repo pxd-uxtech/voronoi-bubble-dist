@@ -1,7 +1,7 @@
 interface:
   display_name: "VoronoiBubble"
-  short_description: "Generate VoronoiBubble HTML charts and popups."
-  default_prompt: "Use $voronoi-bubble to create a popup-enabled VoronoiBubble HTML chart from my data."
+  short_description: "Generate readable Voronoi treemap HTML charts."
+  default_prompt: "Use $voronoi-bubble to create a popup-enabled Voronoi treemap HTML chart from my data."
 
 policy:
   allow_implicit_invocation: true

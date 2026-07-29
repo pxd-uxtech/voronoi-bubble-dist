@@ -1,16 +1,17 @@
 # VoronoiBubble
 
-계층 데이터를 조약돌 모양 보로노이 트리맵으로 그리는 시각화 엔진입니다. 평평한 행 배열(flat rows)을 그대로 넣으면 `group → subgroup → item` 3계층으로 묶어 SVG 하나를 돌려줍니다. 정성데이터 토픽 맵뿐 아니라 부처별 정부 예산, 책·문서 분류 지도처럼 이미 계층과 가중치를 가진 데이터에도 잘 맞습니다. `d3.hierarchy()`를 직접 만들 필요도, 리사이즈 계산 코드를 붙일 필요도 없습니다. AffinityBubble의 렌더링 엔진이기도 합니다.
+VoronoiBubble은 계층 데이터를 조약돌 모양 보로노이 트리맵으로 쉽게 그려주는 시각화 엔진입니다. `group → subgroup → item → size` 컬럼을 가진 tidy-style flat rows를 그대로 넣으면 3계층 SVG를 바로 그려줍니다. 정성데이터 토픽 맵뿐 아니라 부처별 정부 예산, 책·문서 분류 지도처럼 이미 계층과 가중치를 가진 데이터에도 잘 맞습니다. `d3.hierarchy()`를 직접 만들 필요도, 리사이즈 계산 코드를 붙일 필요도 없습니다. AffinityBubble의 렌더링 엔진이기도 합니다.
 
 ![VoronoiBubble 예시 — 고객 리뷰 270건 토픽 맵 (group → subgroup → item 3계층)](docs/images/hero.png)
 
 ## 특징
 
 - **3계층 보로노이 트리맵** — `group`(depth 1) → `subgroup`(depth 2) → `item`(depth 3). 계층마다 라벨이 따로 붙고, depth 1·2에는 둥근 조약돌 외곽선이 그려집니다.
-- **flat rows 입력** — `{ group, subgroup, item, size }` 배열 하나면 끝. 컬럼 이름이 다르면 `levels` / `value`로 매핑합니다.
+- **tidy-style flat rows 입력** — `{ group, subgroup, item, size }` 배열 하나면 바로 그립니다. 컬럼 이름이 다르면 `levels` / `value`로 매핑합니다.
 - **감성 컬러맵** — `sentiment: '점수필드'` 한 줄로 1~5점 같은 수치 필드를 빨강→노랑→초록 다이버징 팔레트에 연결합니다.
 - **팝업·호버 콜백** — `onClick` + `showVoronoiPopup`은 추가 CSS 없이 동작하고, `onHover` / `onSubgroupLabelHover`로 툴팁·설명을 직접 붙일 수 있습니다.
-- **시드 재현성·위치 힌트** — `seedRandom`이 같으면 레이아웃이 항상 같습니다. `positions`로 depth별 상대 위치 힌트를 줄 수 있고, `VoronoiBubbleHelpers.createGridPositions()`로 depth 1 그룹을 읽기 좋은 그리드 순서에 놓을 수 있습니다.
+- **위치 지정·라벨 겹침 완화** — `positions`로 depth별 상대 위치 힌트를 줄 수 있고, `VoronoiBubbleHelpers.createGridPositions()`로 depth 1 그룹을 읽기 좋은 그리드 순서에 놓을 수 있습니다. 기본 라벨 배치는 셀 경계 안에서 겹침을 줄이도록 보정됩니다.
+- **시드 재현성** — `seedRandom`이 같으면 레이아웃이 항상 같습니다.
 - **반응형 SVG** — `viewBox` 기반이라 컨테이너 폭에 맞춰 CSS만으로 확대·축소됩니다. JS 리사이즈 계산이 없습니다.
 - **커스텀 HTML 라벨** — `renderGroupLabel` / `renderSubgroupLabel`이 HTML 문자열을 받아 `foreignObject`로 그립니다.
 
@@ -71,7 +72,7 @@ https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.0.1/dist/voronoi-b
 
 ## 문서
 
-- [docs/API.md](docs/API.md) — 데이터 형식, 전체 옵션 표, 콜백 시그니처, Public CSS API, 팝업, 감성 컬러맵, 위치 힌트
+- [docs/API.md](docs/API.md) — 데이터 형식, 전체 옵션 표, 콜백 시그니처, Public CSS API, 팝업, 감성 컬러맵, 위치 힌트, 라벨 옵션
 - [docs/MIGRATION.md](docs/MIGRATION.md) — v1 → v2 전체 리네임 표와 before/after 예제
 - [docs/OPEN_CORE_STRATEGY.md](docs/OPEN_CORE_STRATEGY.md) — 오픈소스 배포판과 AffinityBubble API의 역할 분리, 에이전트 전략, positions 정책
 - [CHANGELOG.md](CHANGELOG.md) — 버전별 변경 이력
@@ -94,7 +95,7 @@ const svg = new VoronoiBubble().render(data, {
 
 ## Agent Instructions
 
-이 저장소는 `skills/voronoi-bubble/`에 VoronoiBubble용 에이전트 지침도 함께 제공합니다. ChatGPT/Codex는 스킬로 사용할 수 있고, Claude 같은 다른 코딩 에이전트도 같은 지침과 템플릿을 참고해 사용자 데이터를 `group → subgroup → item → size` 형식으로 매핑하고 클릭 팝업이 포함된 브라우저용 HTML 예제를 만들 수 있습니다.
+이 저장소는 `skills/voronoi-bubble/`에 보로노이 트리맵 HTML을 생성하는 에이전트 지침도 함께 제공합니다. ChatGPT/Codex는 스킬로 사용할 수 있고, Claude 같은 다른 코딩 에이전트도 같은 지침과 템플릿을 참고해 사용자 데이터를 `group → subgroup → item → size` 형식으로 매핑하고 클릭 팝업이 포함된 브라우저용 HTML 예제를 만들 수 있습니다.
 
 - 기본 출력: CDN UMD 번들을 쓰는 단일 HTML (`skills/voronoi-bubble/assets/cdn-popup-template.html`)
 - 오프라인 출력: 로컬 `./dist/voronoi-bubble.standalone.umd.js`를 쓰는 HTML (`skills/voronoi-bubble/assets/local-popup-template.html`)

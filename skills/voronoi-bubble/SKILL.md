@@ -45,6 +45,31 @@ Rules:
 - For budget, book-map, or other prepared hierarchy data, map domain fields directly to `group`, `subgroup`, `item`, and `size`; do not force qualitative labels if the source already has a good hierarchy.
 - If data has only two levels, either set `levels` to two fields and use popup `format: "{subgroup}"`, or duplicate the second-level value into `item` for simpler labels/popups.
 
+## Core Options
+
+Use these options directly in generated examples when they fit the user's data:
+
+```js
+{
+  groupColors: { "긍정": "#4CAF50", "부정": "#F44336" },
+  sentiment: "score",
+  positions: [
+    { key: "긍정", depth: 1, x: 1, y: 0 },
+    { key: "부정", depth: 1, x: 0, y: 1 }
+  ],
+  labelMode: "faded",
+  showGroupLabel: true
+}
+```
+
+- Use `groupColors` for explicit group color assignment.
+- Use `sentiment: "fieldName"` when rows include positive/negative or rating scores. It maps numeric sentiment to a red-yellow-green diverging colormap.
+- Use `positions` for relative placement hints. Each entry is `{ key, depth, x, y }`; coordinates are scale-free and normalized by depth.
+- Use `VoronoiBubbleHelpers.createGridPositions(groups, { depth: 1 })` when the user wants a stable reading order but has no semantic coordinates.
+- Use `labelMode: "faded"` by default for dense maps. Use `"show"` for small maps and `"hidden"` when labels should appear mainly through hover/zoom.
+- Keep `showGroupLabel: true` for most hierarchical maps so the top-level regions are readable.
+- If the full repository is available and an advanced option is unclear, read `../../docs/API.md` from this skill folder before guessing.
+
 ## HTML Workflow
 
 1. Normalize or map the user's rows.

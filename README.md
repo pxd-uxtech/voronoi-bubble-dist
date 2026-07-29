@@ -8,7 +8,7 @@ VoronoiBubble은 계층 데이터를 조약돌 모양 보로노이 트리맵으�
 
 - **3계층 보로노이 트리맵** — `group`(depth 1) → `subgroup`(depth 2) → `item`(depth 3). 계층마다 라벨이 따로 붙고, depth 1·2에는 둥근 조약돌 외곽선이 그려집니다.
 - **tidy-style flat rows 입력** — `{ group, subgroup, item, size }` 배열 하나면 바로 그립니다. 컬럼 이름이 다르면 `levels` / `value`로 매핑합니다.
-- **감성 컬러맵** — `sentiment: '점수필드'` 한 줄로 1~5점 같은 수치 필드를 빨강→노랑→초록 다이버징 팔레트에 연결합니다.
+- **쉬운 컬러 지정·긍부정 컬러맵** — `groupColors`로 그룹별 색을 바로 지정하고, `sentiment: '점수필드'` 한 줄로 1~5점 같은 수치 필드를 빨강→노랑→초록 다이버징 팔레트에 연결합니다.
 - **팝업·호버 콜백** — `onClick` + `showVoronoiPopup`은 추가 CSS 없이 동작하고, `onHover` / `onSubgroupLabelHover`로 툴팁·설명을 직접 붙일 수 있습니다.
 - **위치 지정·라벨 겹침 완화** — `positions`로 depth별 상대 위치 힌트를 줄 수 있고, `VoronoiBubbleHelpers.createGridPositions()`로 depth 1 그룹을 읽기 좋은 그리드 순서에 놓을 수 있습니다. 기본 라벨 배치는 셀 경계 안에서 겹침을 줄이도록 보정됩니다.
 - **시드 재현성** — `seedRandom`이 같으면 레이아웃이 항상 같습니다.

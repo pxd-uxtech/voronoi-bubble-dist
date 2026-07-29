@@ -1,13 +1,13 @@
 ---
 name: voronoi-bubble
-description: Use when creating easy Voronoi treemap visualizations with VoronoiBubble from tidy-style flat rows, mapping tabular data to group/subgroup/item/size, adding position hints, generating readable browser-openable HTML examples, adding showVoronoiPopup click popups, or advising on CDN versus local dist usage.
+description: Use when creating easy Voronoi treemap visualizations with VoronoiBubble from tidy-style flat rows, mapping tabular data to group/subgroup/item/size, setting group colors or sentiment colormaps, adding position hints, generating readable browser-openable HTML examples, adding showVoronoiPopup click popups, or advising on CDN versus local dist usage.
 ---
 
 # VoronoiBubble
 
 Use this skill to create executable Voronoi treemap examples with VoronoiBubble from user-provided tidy-style flat rows. Prefer a working HTML artifact over abstract explanation when the user asks to make a chart, popup, or image workflow. The data may be qualitative topic data or any prepared hierarchy with numeric weights, such as government budgets, book maps, document classifications, organization sizes, or project portfolios.
 
-Emphasize that VoronoiBubble is the brand name for an easy Voronoi treemap renderer, and that tidy-style rows can be rendered directly without manually building `d3.hierarchy()` data. When relevant, use `positions` to control relative placement and choose label options that reduce overlap rather than leaving users with a raw geometric layout.
+Emphasize that VoronoiBubble is the brand name for an easy Voronoi treemap renderer, and that tidy-style rows can be rendered directly without manually building `d3.hierarchy()` data. When relevant, use `groupColors` for direct color assignment, `sentiment` for positive/negative colormaps, `positions` to control relative placement, and label options that reduce overlap rather than leaving users with a raw geometric layout.
 
 ## Defaults
 

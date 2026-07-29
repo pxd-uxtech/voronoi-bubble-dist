@@ -26568,7 +26568,9 @@
      */
     // mode: 'standard'(기본 — 형제간 명도 대비를 살린 v1 룩) | 'subtle'(채도 캡 +
     // 낮은 대비의 차분한 룩) | 'strong'(발표용 강한 대비)
-    colorvariation: function (color, vdomain, value, mode = "standard") {
+    // depthScale: 변주 강도 배율. depth-3은 감쇠(<1)해 상위(depth-2) 구분이
+    // 하위 변주에 묻히지 않게 한다 — 위계가 먼저 읽혀야 한다.
+    colorvariation: function (color, vdomain, value, mode = "standard", depthScale = 1) {
       const domain = d3.extent(vdomain);
       if (domain[0] === domain[1]) return d3.hsl(color).formatHex();
       let c = d3.hsl(color);
@@ -26576,14 +26578,14 @@
         const vScale = d3.scaleLinear().domain(domain).range([0.35, 0.85]);
         if (c.l > 0.76) c.l = 0.76;
         c.s = Math.min(c.s, 0.65);
-        c.l += (0.55 - vScale(value)) * 0.06;
+        c.l += (0.55 - vScale(value)) * 0.06 * depthScale;
         if (c.l > 0.8) c.l = 0.8;
         if (c.l < 0.28) c.l = 0.28;
         return c.formatHex();
       }
       // standard/strong: 채도와 형제간 대비는 v1대로 살리되, 밝아지는 방향만
       // 감쇠해 최소값 셀이 하얗게 뜨는 문제를 막는다.
-      const spread = mode === "strong" ? 0.14 : 0.1;
+      const spread = (mode === "strong" ? 0.14 : 0.1) * depthScale;
       const vScale = d3.scaleLinear().domain(domain).range([0.3, 1]);
       if (c.l > 0.78) c.l = 0.78;
       const delta = (0.5 - vScale(value)) * spread;
@@ -26618,7 +26620,8 @@
           hierarchy.parent.color,
           this._variationDomain(self, hierarchy, 3),
           hierarchy.value,
-          self.params?.colorVariation ?? "standard"
+          self.params?.colorVariation ?? "standard",
+          0.45 // depth-3 감쇠 — 서브그룹 경계가 항목 변주보다 먼저 읽히게
         );
         if (self.params.colorFunc) {
           const originalData = self.data.filter(

@@ -18,7 +18,7 @@ v2.0 기준 전체 API 레퍼런스입니다. v1에서 올라오는 경우 [MIGR
 ## 로드하기
 
 ```
-https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.1/dist/voronoi-bubble.standalone.js
+https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.2/dist/voronoi-bubble.standalone.js
 ```
 
 
@@ -26,14 +26,14 @@ https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.1/dist/voronoi-b
 
 ```javascript
 import { VoronoiBubble, showVoronoiPopup }
-  from 'https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.1/dist/voronoi-bubble.standalone.js';
+  from 'https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.2/dist/voronoi-bubble.standalone.js';
 ```
 
 Observable에서는 동적 import를 씁니다.
 
 ```javascript
 {
-  const m = await import("https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.1/dist/voronoi-bubble.standalone.js");
+  const m = await import("https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.2/dist/voronoi-bubble.standalone.js");
   VoronoiBubble = m.VoronoiBubble;
   showVoronoiPopup = m.showVoronoiPopup;
   return m;
@@ -43,7 +43,7 @@ Observable에서는 동적 import를 씁니다.
 ### `<script>` 태그 (UMD, `file://`에서도 동작)
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.1/dist/voronoi-bubble.standalone.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.2/dist/voronoi-bubble.standalone.umd.js"></script>
 <script>
   const { VoronoiBubble, showVoronoiPopup } = VoronoiBubbleModule;
 </script>

@@ -1,8 +1,8 @@
 /*!
  * VoronoiBubble (@pxd-uxtech/voronoi-bubble)
  * Originally created by @taekie
- * Copyright (c) 2025 UXtechLab. All Rights Reserved.
- * Licensed under BUSL-1.1. See LICENSE for details.
+ * Copyright (c) 2025 UXtechLab.
+ * Licensed under the MIT License. See LICENSE for details.
  */
 (function (global, factory) {
   typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('d3'), require('d3-weighted-voronoi'), require('d3-voronoi-map'), require('d3-voronoi-treemap'), require('seedrandom')) :
@@ -33,8 +33,8 @@
   var d3VoronoiTreemap__namespace = /*#__PURE__*/_interopNamespaceDefault(d3VoronoiTreemap);
   var seedrandomModule__namespace = /*#__PURE__*/_interopNamespaceDefault(seedrandomModule);
 
-  // Copyright (c) 2025 UXtechLab. All Rights Reserved.
-  // Originally created by @taekie. Licensed under BUSL-1.1 by UXtechLab. See LICENSE for details.
+  // Copyright (c) 2025 UXtechLab.
+  // Originally created by @taekie. Licensed under the MIT License. See LICENSE for details.
   /**
    * D3 Bundle Utility
    *
@@ -71,8 +71,8 @@
   // This allows usage like: d3.seedrandom('myseed')
   d3.seedrandom = seedrandomModule__namespace.default || seedrandomModule__namespace;
 
-  // Copyright (c) 2025 UXtechLab. All Rights Reserved.
-  // Originally created by @taekie. Licensed under BUSL-1.1 by UXtechLab. See LICENSE for details.
+  // Copyright (c) 2025 UXtechLab.
+  // Originally created by @taekie. Licensed under the MIT License. See LICENSE for details.
   /**
    * PebbleRenderer
    *
@@ -332,8 +332,8 @@
     }
   }
 
-  // Copyright (c) 2025 UXtechLab. All Rights Reserved.
-  // Originally created by @taekie. Licensed under BUSL-1.1 by UXtechLab. See LICENSE for details.
+  // Copyright (c) 2025 UXtechLab.
+  // Originally created by @taekie. Licensed under the MIT License. See LICENSE for details.
   /**
    * LabelAdjuster
    *
@@ -828,8 +828,8 @@
     }
   }
 
-  // Copyright (c) 2025 UXtechLab. All Rights Reserved.
-  // Originally created by @taekie. Licensed under BUSL-1.1 by UXtechLab. See LICENSE for details.
+  // Copyright (c) 2025 UXtechLab.
+  // Originally created by @taekie. Licensed under the MIT License. See LICENSE for details.
   /**
    * Nesting For Voronoi Utility
    *
@@ -923,8 +923,8 @@
     };
   }
 
-  // Copyright (c) 2025 UXtechLab. All Rights Reserved.
-  // Originally created by @taekie. Licensed under BUSL-1.1 by UXtechLab. See LICENSE for details.
+  // Copyright (c) 2025 UXtechLab.
+  // Originally created by @taekie. Licensed under the MIT License. See LICENSE for details.
   /**
    * VoronoiBubble Helpers
    *
@@ -1192,6 +1192,49 @@
       };
 
       return { colorFunc, groupColors };
+    },
+
+    /**
+     * Create row-major grid position hints for stable high-level layouts.
+     * Useful for depth-1 groups where a predictable reading order matters more
+     * than semantic coordinates.
+     * @param {Array<string|Object>} items - Keys or objects containing the key field
+     * @param {Object} [options]
+     * @param {number} [options.depth=1] - Hierarchy depth for generated positions
+     * @param {number|string} [options.columns="auto"] - Column count, or "auto"
+     * @param {string} [options.keyField="key"] - Field to read when items are objects
+     * @param {number} [options.padding=0.15] - Outer padding in normalized space
+     * @returns {Object[]} Position hints: { depth, key, x, y }
+     */
+    createGridPositions: function (items, options = {}) {
+      const {
+        depth = 1,
+        columns = "auto",
+        keyField = "key",
+        padding = 0.15
+      } = options;
+
+      const keys = (items || [])
+        .map((item) => (typeof item === "object" ? item?.[keyField] : item))
+        .filter((key) => key !== undefined && key !== null);
+      const count = keys.length;
+      if (!count) return [];
+
+      const colCount = columns === "auto"
+        ? Math.ceil(Math.sqrt(count))
+        : Math.max(1, Math.floor(Number(columns) || 1));
+      const rowCount = Math.ceil(count / colCount);
+      const min = Math.max(0, Math.min(0.49, Number(padding)));
+      const max = 1 - min;
+      const xAt = (col) => colCount === 1 ? 0.5 : min + (max - min) * (col / (colCount - 1));
+      const yAt = (row) => rowCount === 1 ? 0.5 : min + (max - min) * (row / (rowCount - 1));
+
+      return keys.map((key, index) => ({
+        depth,
+        key,
+        x: xAt(index % colCount),
+        y: yAt(Math.floor(index / colCount))
+      }));
     },
 
     // === Text & Label Functions ===
@@ -1652,9 +1695,9 @@
       }
 
       function findNodeInitialPosition(node, initialPositions) {
-        return initialPositions.find(
-          (pos) => pos.depth === node.depth && pos.key === node.data.key
-        );
+        return initialPositions.find((pos) => {
+          return pos.depth === node.depth && pos.key === node.data.key;
+        });
       }
 
       function getSiblingInitialPositions(siblings, initialPositions) {
@@ -1761,8 +1804,6 @@
         );
 
         if (siblingInitialPositions.length > 0) {
-          const siblingXExtent = d3.extent(siblingInitialPositions, (d) => d.x);
-          const siblingYExtent = d3.extent(siblingInitialPositions, (d) => d.y);
           const nodeInitialPosition = findNodeInitialPosition(
             d,
             initialPositions
@@ -1777,12 +1818,8 @@
             }
 
             const [mappedX, mappedY] = mapPointToPolygon(
-              d3.scaleLinear().domain(siblingXExtent).range([-1, 1])(
-                nodeInitialPosition.x
-              ),
-              d3.scaleLinear().domain(siblingYExtent).range([-1, 1])(
-                nodeInitialPosition.y
-              ),
+              d3.scaleLinear().domain([0, 1]).range([-1, 1])(nodeInitialPosition.x),
+              d3.scaleLinear().domain([0, 1]).range([-1, 1])(nodeInitialPosition.y),
               getPolygonAngles(clippingPolygon),
               clippingPolygon
             );
@@ -1805,8 +1842,8 @@
     }
   };
 
-  // Copyright (c) 2025 UXtechLab. All Rights Reserved.
-  // Originally created by @taekie. Licensed under BUSL-1.1 by UXtechLab. See LICENSE for details.
+  // Copyright (c) 2025 UXtechLab.
+  // Originally created by @taekie. Licensed under the MIT License. See LICENSE for details.
   /**
    * PopupHelpers
    *
@@ -2185,8 +2222,8 @@ svg.vb-hover-enabled .vb-cell[data-depth="3"]:hover {
 `;
   }
 
-  // Copyright (c) 2025 UXtechLab. All Rights Reserved.
-  // Originally created by @taekie. Licensed under BUSL-1.1 by UXtechLab. See LICENSE for details.
+  // Copyright (c) 2025 UXtechLab.
+  // Originally created by @taekie. Licensed under the MIT License. See LICENSE for details.
   /**
    * VoronoiBubble
    *
@@ -2744,7 +2781,7 @@ svg.vb-hover-enabled .vb-cell[data-depth="3"]:hover {
 
     _normalizePositions(positions) {
       const result = [];
-      const hierarchyNodes = this.hierarchy.descendants();
+      this.hierarchy.descendants();
 
       // Helper: Add jitter to duplicate positions to prevent voronoi algorithm failure
       const addJitterForDuplicates = (positions, jitterAmount = 0.02) => {
@@ -2794,46 +2831,33 @@ svg.vb-hover-enabled .vb-cell[data-depth="3"]:hover {
         result.push(...depth1Normalized);
       }
 
-      // depth 2, 3: Find parent in hierarchy and normalize among siblings
+      // depth 2, 3: normalize per depth, not per parent. Affinity/UMAP style
+      // coordinates are usually computed over the whole depth set, so splitting
+      // by parent would destroy the global semantic layout.
       [2, 3].forEach((depth) => {
         const depthPositions = positions.filter((p) => p.depth === depth);
         if (depthPositions.length === 0) return;
 
-        // Find parent groups for nodes at this depth
-        const nodesAtDepth = hierarchyNodes.filter((n) => n.depth === depth);
-        const byParent = d3.group(nodesAtDepth, (n) => n.parent?.data?.key);
+        const xExtent = d3.extent(depthPositions, (p) => p.x);
+        const yExtent = d3.extent(depthPositions, (p) => p.y);
 
-        byParent.forEach((siblings, parentKey) => {
-          // Find positions for these siblings
-          const siblingKeys = new Set(siblings.map((s) => s.data.key));
-          const siblingPositions = depthPositions.filter((p) =>
-            siblingKeys.has(p.key)
-          );
+        const xScale =
+          xExtent[0] === xExtent[1]
+            ? () => 0.5
+            : d3.scaleLinear().domain(xExtent).range([0.15, 0.85]);
+        const yScale =
+          yExtent[0] === yExtent[1]
+            ? () => 0.5
+            : d3.scaleLinear().domain(yExtent).range([0.15, 0.85]);
 
-          if (siblingPositions.length === 0) return;
+        const depthNormalized = depthPositions.map((pos) => ({
+          ...pos,
+          x: xScale(pos.x),
+          y: yScale(pos.y)
+        }));
 
-          const xExtent = d3.extent(siblingPositions, (p) => p.x);
-          const yExtent = d3.extent(siblingPositions, (p) => p.y);
-
-          const xScale =
-            xExtent[0] === xExtent[1]
-              ? () => 0.5
-              : d3.scaleLinear().domain(xExtent).range([0.15, 0.85]);
-          const yScale =
-            yExtent[0] === yExtent[1]
-              ? () => 0.5
-              : d3.scaleLinear().domain(yExtent).range([0.15, 0.85]);
-
-          const siblingNormalized = siblingPositions.map((pos) => ({
-            ...pos,
-            x: xScale(pos.x),
-            y: yScale(pos.y)
-          }));
-
-          // Add jitter for any duplicate positions within siblings
-          addJitterForDuplicates(siblingNormalized);
-          result.push(...siblingNormalized);
-        });
+        addJitterForDuplicates(depthNormalized);
+        result.push(...depthNormalized);
       });
 
       return result;
@@ -3480,8 +3504,8 @@ svg.vb-hover-enabled .vb-cell[data-depth="3"]:hover {
     }
   }
 
-  // Copyright (c) 2025 UXtechLab. All Rights Reserved.
-  // Originally created by @taekie. Licensed under BUSL-1.1 by UXtechLab. See LICENSE for details.
+  // Copyright (c) 2025 UXtechLab.
+  // Originally created by @taekie. Licensed under the MIT License. See LICENSE for details.
   /**
    * Voronoi Popup Utility
    *
@@ -3639,8 +3663,8 @@ svg.vb-hover-enabled .vb-cell[data-depth="3"]:hover {
     return popup;
   }
 
-  // Copyright (c) 2025 UXtechLab. All Rights Reserved.
-  // Originally created by @taekie. Licensed under BUSL-1.1 by UXtechLab. See LICENSE for details.
+  // Copyright (c) 2025 UXtechLab.
+  // Originally created by @taekie. Licensed under the MIT License. See LICENSE for details.
   /**
    * VoronoiBubble Library
    * Main entry point - exports VoronoiBubble as default and helpers as named exports

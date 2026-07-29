@@ -15,6 +15,10 @@ VoronoiBubble에 기여해 주셔서 감사합니다.
 
 오타 수정, 문서 개선, 명백한 버그 수정은 이슈 없이 바로 PR을 보내도 좋습니다.
 
+## 배포판 저장소의 역할
+
+이 저장소는 MIT로 공개되는 배포 산출물, 예제, 문서, 에이전트 지침을 담습니다. 핵심 소스 개발 저장소와 기여 흐름은 별도로 정리 중이므로, 당분간 기능 PR보다는 이슈·문서·예제 제안을 우선합니다.
+
 ## 개발 환경
 
 개발(테스트 실행)에는 **Node.js 20 이상**이 필요합니다 — Vitest가 요구하는 하한이고 CI도 20을 씁니다. 라이브러리를 **소비**하는 쪽 런타임 요구사항은 `package.json`의 `engines`(`>=16`)가 그대로 유효합니다.
@@ -45,11 +49,11 @@ npm run dev         # serve . -l 3000
 2. [ ] `npm run build` 성공 (5개 번들이 모두 생성되는지)
 3. [ ] 동작이 바뀌었다면 `tests/`에 테스트를 추가하거나 갱신
 4. [ ] 공개 API가 바뀌었다면 `docs/API.md`와 `CHANGELOG.md`(`## [Unreleased]`)를 함께 수정
-5. [ ] 새 파일에 저작권 헤더 2줄 포함
+5. [ ] 새 파일에 MIT 배포판 저작권 헤더 포함
 
 ```javascript
-// Copyright (c) 2025 UXtechLab. All Rights Reserved.
-// Originally created by @taekie. Licensed under BUSL-1.1 by UXtechLab. See LICENSE for details.
+// Copyright (c) 2025 UXtechLab.
+// Originally created by @taekie. Licensed under the MIT License. See LICENSE for details.
 ```
 
 CI(GitHub Actions)가 push·PR마다 `npm ci && npm test && npm run build`를 실행합니다.
@@ -124,4 +128,4 @@ BREAKING CHANGE: .textArea → .vb-cell[data-depth="3"] 등 전체 클래스 리
 
 ## 라이선스
 
-기여하신 코드는 저장소와 동일한 [BUSL-1.1](LICENSE) 조건으로 배포됩니다 (Change Date 2029-01-01에 MIT로 전환). PR을 보내는 것은 이 조건에 동의하는 것으로 간주합니다.
+이 배포 저장소의 번들, 예제, 문서, 에이전트 지침은 [MIT License](LICENSE) 조건으로 배포됩니다. 별도 소스 개발 저장소의 라이선스와 기여 조건은 다를 수 있습니다.

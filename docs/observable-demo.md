@@ -120,6 +120,59 @@ positionedChart = {
 }
 ```
 
+**셀 7 — JavaScript 셀 (진짜 공개 계층 데이터: flare)**
+
+```javascript
+flareRows = {
+  // vega-datasets의 flare.json — d3 트리맵 데모의 고전 (Flare 툴킷 클래스 계층).
+  // parent 포인터를 경로로 풀어 package / subpackage / class 3계층 rows로 평탄화.
+  const flare = await (
+    await fetch("https://cdn.jsdelivr.net/npm/vega-datasets@2/data/flare.json")
+  ).json();
+  const byId = new Map(flare.map((n) => [n.id, n]));
+  const path = (n) => (n.parent == null ? [n.name] : [...path(byId.get(n.parent)), n.name]);
+  return flare
+    .filter((n) => n.size != null)
+    .map((n) => {
+      const p = path(n);
+      return {
+        package: p[1],
+        subpackage: p.length > 3 ? p[2] : p[1] + " core",
+        class: p[p.length - 1],
+        size: n.size
+      };
+    });
+}
+```
+
+**셀 8 — JavaScript 셀 (viridis 스케일 로드)**
+
+```javascript
+d3sc = import("https://cdn.jsdelivr.net/npm/d3-scale-chromatic@3/+esm")
+```
+
+**셀 9 — JavaScript 셀 (colorFunc로 셀 색 직접 계산)**
+
+```javascript
+flareChart = {
+  const logs = flareRows.map((d) => Math.log10(d.size));
+  const [lo, hi] = [Math.min(...logs), Math.max(...logs)];
+  return new VB.VoronoiBubble().render(flareRows, {
+    width: 1200,
+    height: 900,
+    levels: ["package", "subpackage", "class"],
+    value: "size",
+    title: `Flare toolkit — ${flareRows.length} classes by source size`,
+    caption: "real public hierarchy (vega-datasets flare.json) · color = log₁₀ size (viridis)",
+    colorFunc: (rows, node, defaultColor, ctx) =>
+      d3sc.interpolateViridis(0.12 + 0.83 * ((Math.log10(ctx.value) - lo) / (hi - lo))),
+    showGroupLabel: true,
+    showPercent: true,
+    sizeLimit: 1e9 // 값 라벨 숨김 — viridis 위에서 노이즈라
+  });
+}
+```
+
 ---
 
 메모

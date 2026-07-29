@@ -10,8 +10,9 @@ VoronoiBubble 데모 노트북이 완성됩니다. 셀 하나가 Observable 셀 
 ```
 # VoronoiBubble — customer feedback topic map
 
-Flat rows in, a pebble-shaped Voronoi treemap out. `group → subgroup → item`,
-cell area = number of mentions. Click a cell for the quoted opinion.
+Flat rows in, a pebble-shaped Voronoi treemap out. Your own column names work
+as-is via `levels`/`value` — here `topic → aspect → opinion`, sized by `mentions`.
+Click a cell for the quoted opinion.
 Library: [pxd-uxtech/voronoi-bubble-dist](https://github.com/pxd-uxtech/voronoi-bubble-dist) (MIT)
 ```
 
@@ -30,24 +31,24 @@ VB = {
 
 ```javascript
 data = [
-  { group: "Shipping", subgroup: "Delivery speed", item: "Arrived next day", size: 18 },
-  { group: "Shipping", subgroup: "Delivery speed", item: "Faster than expected", size: 11 },
-  { group: "Shipping", subgroup: "Delivery delays", item: "Took over a week", size: 8 },
-  { group: "Shipping", subgroup: "Delivery delays", item: "No tracking updates", size: 5 },
-  { group: "Shipping", subgroup: "Packaging", item: "Well protected box", size: 9 },
-  { group: "Product Quality", subgroup: "Build quality", item: "Feels premium", size: 14 },
-  { group: "Product Quality", subgroup: "Build quality", item: "Solid materials", size: 9 },
-  { group: "Product Quality", subgroup: "Durability issues", item: "Broke within a month", size: 7 },
-  { group: "Product Quality", subgroup: "Consistency", item: "Color differs from photos", size: 6 },
-  { group: "Pricing", subgroup: "Value for money", item: "Great value", size: 13 },
-  { group: "Pricing", subgroup: "Value for money", item: "Would buy again", size: 8 },
-  { group: "Pricing", subgroup: "Price increases", item: "Got more expensive", size: 6 },
-  { group: "Support", subgroup: "Helpful agents", item: "Solved it right away", size: 10 },
-  { group: "Support", subgroup: "Slow responses", item: "Waited days for a reply", size: 8 },
-  { group: "Support", subgroup: "Refund friction", item: "Refund was complicated", size: 6 },
-  { group: "App Experience", subgroup: "Easy ordering", item: "Checkout is quick", size: 11 },
-  { group: "App Experience", subgroup: "App crashes", item: "App keeps crashing", size: 7 },
-  { group: "App Experience", subgroup: "Search gaps", item: "Search misses items", size: 5 }
+  { topic: "Shipping", aspect: "Delivery speed", opinion: "Arrived next day", mentions: 18 },
+  { topic: "Shipping", aspect: "Delivery speed", opinion: "Faster than expected", mentions: 11 },
+  { topic: "Shipping", aspect: "Delivery delays", opinion: "Took over a week", mentions: 8 },
+  { topic: "Shipping", aspect: "Delivery delays", opinion: "No tracking updates", mentions: 5 },
+  { topic: "Shipping", aspect: "Packaging", opinion: "Well protected box", mentions: 9 },
+  { topic: "Product Quality", aspect: "Build quality", opinion: "Feels premium", mentions: 14 },
+  { topic: "Product Quality", aspect: "Build quality", opinion: "Solid materials", mentions: 9 },
+  { topic: "Product Quality", aspect: "Durability issues", opinion: "Broke within a month", mentions: 7 },
+  { topic: "Product Quality", aspect: "Consistency", opinion: "Color differs from photos", mentions: 6 },
+  { topic: "Pricing", aspect: "Value for money", opinion: "Great value", mentions: 13 },
+  { topic: "Pricing", aspect: "Value for money", opinion: "Would buy again", mentions: 8 },
+  { topic: "Pricing", aspect: "Price increases", opinion: "Got more expensive", mentions: 6 },
+  { topic: "Support", aspect: "Helpful agents", opinion: "Solved it right away", mentions: 10 },
+  { topic: "Support", aspect: "Slow responses", opinion: "Waited days for a reply", mentions: 8 },
+  { topic: "Support", aspect: "Refund friction", opinion: "Refund was complicated", mentions: 6 },
+  { topic: "App Experience", aspect: "Easy ordering", opinion: "Checkout is quick", mentions: 11 },
+  { topic: "App Experience", aspect: "App crashes", opinion: "App keeps crashing", mentions: 7 },
+  { topic: "App Experience", aspect: "Search gaps", opinion: "Search misses items", mentions: 5 }
 ]
 ```
 
@@ -58,13 +59,15 @@ chart = {
   const svg = new VB.VoronoiBubble().render(data, {
     width: 1200,
     height: 900,
-    title: `What ${data.reduce((s, d) => s + d.size, 0)} customer reviews talk about`,
+    levels: ["topic", "aspect", "opinion"],   // 원본 컬럼명 그대로
+    value: "mentions",
+    title: `What ${data.reduce((s, d) => s + d.mentions, 0)} customer reviews talk about`,
     caption: "cell area = number of mentions · click a cell",
     showGroupLabel: true,
     showPercent: true,
     onClick: (cell) =>
       VB.showVoronoiPopup(cell, {
-        format: "<b>“{item}”</b><br>{subgroup} · {group}<br>{size} mentions"
+        format: "<b>“{opinion}”</b><br>{aspect} · {topic}<br>{mentions} mentions"
       })
   });
   return svg;
@@ -80,6 +83,8 @@ sentimentChart = {
   const svg = new VB.VoronoiBubble().render(rated, {
     width: 1200,
     height: 900,
+    levels: ["topic", "aspect", "opinion"],
+    value: "mentions",
     title: "Same map, colored by rating (sentiment: 'rating')",
     sentiment: "rating",
     showGroupLabel: true
@@ -103,6 +108,8 @@ positionedChart = {
   const svg = new VB.VoronoiBubble().render(data, {
     width: 1200,
     height: 900,
+    levels: ["topic", "aspect", "opinion"],
+    value: "mentions",
     title: "Same data, groups pinned with `positions`",
     caption: "Shipping left · Product Quality top · App Experience right — layout stays put across re-renders",
     positions,

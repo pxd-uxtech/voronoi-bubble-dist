@@ -3,16 +3,16 @@
 [observablehq.com](https://observablehq.com)에서 새 노트북을 만들고 아래 셀을 순서대로 붙여넣으면
 VoronoiBubble 데모 노트북이 완성됩니다. 셀 하나가 Observable 셀 하나입니다.
 
+구성: ① 고객 피드백 토픽 맵(기본·팝업·sentiment) → ② 세계 인구 맵(실데이터 + **positions·컬러맵 토글**) → ③ Flare 클래스 계층(colorFunc 심화).
+
 ---
 
 **셀 1 — Markdown 셀**
 
 ```
-# VoronoiBubble — customer feedback topic map
+# VoronoiBubble — flat rows in, pebble treemaps out
 
-Flat rows in, a pebble-shaped Voronoi treemap out. Your own column names work
-as-is via `levels`/`value` — here `topic → aspect → opinion`, sized by `mentions`.
-Click a cell for the quoted opinion.
+Your own column names work as-is via `levels`/`value`. Click cells for popups.
 Library: [pxd-uxtech/voronoi-bubble-dist](https://github.com/pxd-uxtech/voronoi-bubble-dist) (MIT)
 ```
 
@@ -27,7 +27,7 @@ VB = {
 }
 ```
 
-**셀 3 — JavaScript 셀 (데이터)**
+**셀 3 — JavaScript 셀 (고객 피드백 데이터 — 의미 있는 컬럼명)**
 
 ```javascript
 data = [
@@ -52,7 +52,7 @@ data = [
 ]
 ```
 
-**셀 4 — JavaScript 셀 (차트)**
+**셀 4 — JavaScript 셀 (피드백 차트 + 클릭 팝업)**
 
 ```javascript
 chart = {
@@ -93,34 +93,103 @@ sentimentChart = {
 }
 ```
 
-**셀 6 — JavaScript 셀 (positions로 그룹 위치 고정, 선택)**
+---
+
+## 세계 인구 맵 — 실데이터 + positions·컬러맵 토글
+
+**셀 6 — JavaScript 셀 (viridis 스케일 로드)**
 
 ```javascript
-positionedChart = {
-  // {key, depth, x, y} — 0~1 상대 좌표. 지정하지 않은 그룹은 시드 기반 자동 배치.
-  // 임베딩+UMAP 좌표를 그대로 넣으면 의미상 가까운 주제가 화면에서도 가까워진다
-  // (docs/API.md '위치 제어와 재현성' 참조).
-  const positions = [
-    { key: "🚚 Shipping", depth: 1, x: 0.15, y: 0.5 },
-    { key: "✨ Product Quality", depth: 1, x: 0.5, y: 0.2 },
-    { key: "📱 App Experience", depth: 1, x: 0.85, y: 0.5 }
-  ];
-  const svg = new VB.VoronoiBubble().render(data, {
-    width: 1200,
-    height: 900,
-    levels: ["topic", "aspect", "opinion"],
-    value: "mentions",
-    title: "Same data, groups pinned with `positions`",
-    caption: "🚚 left · ✨ top · 📱 right — layout stays put across re-renders",
-    positions,
-    seedRandom: "demo",
-    showGroupLabel: true
+d3sc = import("https://cdn.jsdelivr.net/npm/d3-scale-chromatic@3/+esm")
+```
+
+**셀 7 — JavaScript 셀 (실데이터 3종 조인: 지역 계층·인구·일인당 GDP)**
+
+```javascript
+worldRows = {
+  // world-countries(지역 계층·좌표) + country-json(인구) + World Bank API(일인당 GDP 최신연도)
+  const [countries, popList, gdpRes] = await Promise.all([
+    fetch("https://cdn.jsdelivr.net/npm/world-countries@5/countries.json").then((r) => r.json()),
+    fetch("https://cdn.jsdelivr.net/npm/country-json@1/src/country-by-population.json").then((r) => r.json()),
+    fetch("https://api.worldbank.org/v2/country/all/indicator/NY.GDP.PCAP.CD?format=json&per_page=400&mrv=1").then((r) => r.json())
+  ]);
+  const ALIAS = {
+    "DR Congo": "The Democratic Republic of Congo",
+    "Türkiye": "Turkey",
+    "Libya": "Libyan Arab Jamahiriya",
+    "Fiji": "Fiji Islands"
+  };
+  const popMap = new Map(popList.filter((p) => p.population).map((p) => [p.country, p.population]));
+  const gdpMap = new Map(gdpRes[1].filter((r) => r.value != null).map((r) => [r.countryiso3code, r.value]));
+  return countries.flatMap((c) => {
+    const name = c.name.common;
+    const population = popMap.get(name) ?? popMap.get(ALIAS[name]) ?? popMap.get(c.name.official);
+    const gdpPerCapita = gdpMap.get(c.cca3);
+    if (!population || !gdpPerCapita || c.region === "Antarctic") return [];
+    return [{
+      continent: c.region, subregion: c.subregion, country: name,
+      population, gdpPerCapita, latlng: c.latlng
+    }];
   });
-  return svg;
 }
 ```
 
-**셀 7 — JavaScript 셀 (진짜 공개 계층 데이터: flare)**
+**셀 8 — JavaScript 셀 (대륙 지리 좌표 → positions)**
+
+```javascript
+geoPositions = {
+  // 대륙별 평균 lat/lng를 0~1 상대 좌표로 — 위치를 데이터에서 계산한다
+  const byContinent = {};
+  worldRows.forEach((r) => (byContinent[r.continent] ??= []).push(r));
+  return Object.entries(byContinent).map(([key, rs]) => ({
+    key, depth: 1,
+    x: (rs.reduce((s, r) => s + r.latlng[1], 0) / rs.length + 180) / 360,
+    y: (90 - rs.reduce((s, r) => s + r.latlng[0], 0) / rs.length) / 180
+  }));
+}
+```
+
+**셀 9 — JavaScript 셀 (토글 UI)**
+
+```javascript
+viewof controls = Inputs.form({
+  geo: Inputs.toggle({ label: "Pin continents geographically (positions)", value: true }),
+  gdp: Inputs.toggle({ label: "Color by GDP per capita (colorFunc + viridis)", value: true })
+})
+```
+
+**셀 10 — JavaScript 셀 (반응형 세계 인구 차트)**
+
+```javascript
+worldChart = {
+  const logs = worldRows.map((d) => Math.log10(d.gdpPerCapita));
+  const [lo, hi] = [Math.min(...logs), Math.max(...logs)];
+  return new VB.VoronoiBubble().render(worldRows, {
+    width: 1200,
+    height: 900,
+    levels: ["continent", "subregion", "country"],
+    value: "population",
+    title: `World population — ${worldRows.length} countries`,
+    caption: "area = population"
+      + (controls.gdp ? " · color = GDP per capita (viridis, log)" : "")
+      + (controls.geo ? " · continents pinned by mean lat/lng" : ""),
+    positions: controls.geo ? geoPositions : null,
+    colorFunc: controls.gdp
+      ? (rows) => d3sc.interpolateViridis(0.1 + 0.85 * ((Math.log10(rows[0].gdpPerCapita) - lo) / (hi - lo)))
+      : null,
+    seedRandom: "world",
+    showGroupLabel: true,
+    showPercent: true,
+    sizeLimit: 1e12 // 값 라벨 숨김
+  });
+}
+```
+
+---
+
+## Flare 클래스 계층 — colorFunc 심화
+
+**셀 11 — JavaScript 셀 (공개 계층 데이터: flare)**
 
 ```javascript
 flareRows = {
@@ -145,13 +214,7 @@ flareRows = {
 }
 ```
 
-**셀 8 — JavaScript 셀 (viridis 스케일 로드)**
-
-```javascript
-d3sc = import("https://cdn.jsdelivr.net/npm/d3-scale-chromatic@3/+esm")
-```
-
-**셀 9 — JavaScript 셀 (colorFunc로 셀 색 직접 계산)**
+**셀 12 — JavaScript 셀 (log 크기 viridis)**
 
 ```javascript
 flareChart = {
@@ -168,7 +231,7 @@ flareChart = {
       d3sc.interpolateViridis(0.12 + 0.83 * ((Math.log10(ctx.value) - lo) / (hi - lo))),
     showGroupLabel: true,
     showPercent: true,
-    sizeLimit: 1e9 // 값 라벨 숨김 — viridis 위에서 노이즈라
+    sizeLimit: 1e9
   });
 }
 ```
@@ -180,3 +243,4 @@ flareChart = {
 - CDN 핀(`@v2.1.3`)은 릴리스에 맞춰 올리면 됩니다 — 태그 핀이라 기존 노트북은 깨지지 않습니다.
 - 팝업(`showVoronoiPopup`)은 추가 CSS 없이 동작합니다. Observable 페이지의 `document.body`에 절대 위치로 붙습니다.
 - 반응형: 반환된 SVG에 `width:100%; height:auto; max-width:1200px`가 이미 걸려 있어 셀 폭에 맞춰 줄어듭니다.
+- 세계 인구 셀의 데이터 출처: [world-countries](https://www.npmjs.com/package/world-countries)(지역 계층·좌표), [country-json](https://www.npmjs.com/package/country-json)(인구), [World Bank API](https://api.worldbank.org)(일인당 GDP). Taiwan·Kosovo는 인구/GDP 소스에 없어 제외됩니다.

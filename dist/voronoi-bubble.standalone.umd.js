@@ -26569,11 +26569,13 @@
     colorvariation: function (color, vdomain, value, desc) {
       const domain = d3.extent(vdomain);
       if (domain[0] === domain[1]) return d3.hsl(color).formatHex();
-      let vScale = d3.scaleLinear().domain(domain).range([0.3, 1]);
+      let vScale = d3.scaleLinear().domain(domain).range([0.35, 0.85]);
       let c = d3.hsl(color);
+      if (c.l > 0.76) c.l = 0.76;
+      c.s = Math.min(c.s, 0.65);
+      c.l += (0.55 - vScale(value)) * 0.06;
       if (c.l > 0.8) c.l = 0.8;
-      c.l += (0.5 - vScale(value)) * 0.1;
-      if (c.l > 0.9) c.l = 0.9;
+      if (c.l < 0.28) c.l = 0.28;
       return c.formatHex();
     },
 
@@ -26585,19 +26587,23 @@
     colorHierarchy: function (self, hierarchy) {
       if (hierarchy.depth === 0) {
         hierarchy.color = "#ddd";
+        self._colorVariationDomains = {
+          2: hierarchy.descendants().filter((d) => d.depth === 2).map((d) => d.value),
+          3: hierarchy.descendants().filter((d) => d.depth === 3).map((d) => d.value)
+        };
       } else if (hierarchy.depth === 1) {
         hierarchy.color = self.regionColor(hierarchy.data.key);
       } else if (hierarchy.depth === 2) {
         hierarchy.color = this.colorvariation(
           hierarchy.parent.color,
-          hierarchy.parent.children.map((d) => d.value),
+          self._colorVariationDomains?.[2] ?? hierarchy.parent.children.map((d) => d.value),
           hierarchy.value,
           hierarchy.depth + hierarchy.data.key
         );
       } else if (hierarchy.depth === 3) {
         hierarchy.color = this.colorvariation(
           hierarchy.parent.color,
-          hierarchy.parent.children.map((d) => d.value),
+          self._colorVariationDomains?.[3] ?? hierarchy.parent.children.map((d) => d.value),
           hierarchy.value,
           hierarchy.depth + hierarchy.data.key
         );
@@ -26833,6 +26839,103 @@
     },
 
     /**
+     * Convert heading-like labels to at most two balanced SVG tspan lines.
+     * Intended for depth-2 subgroup labels, which should be short headings
+     * rather than full sentences.
+     */
+    phraseMultiline: function (text, getBoxInfo, charsPerLine, lineHeight = 1.1, maxLines = 2) {
+      const inputText = text ? String(text).trim() : "";
+      const isLatinText = !/[^A-Za-z0-9\s\-.,!?:;@]/.test(inputText);
+      const lineLimit = charsPerLine ?? (isLatinText ? 22 : 13);
+      const forcedLineBreaks = inputText.split("\n");
+      let allLines = [];
+
+      const measure = (value) => {
+        const chars = Array.from(String(value));
+        return chars.reduce((width, char) => {
+          if (/[A-Za-z0-9]/.test(char)) return width + 0.65;
+          if (/\s/.test(char)) return width + 0.45;
+          if (/[.,!?:;|]/.test(char)) return width + 0.3;
+          return width + 1;
+        }, 0);
+      };
+
+      const clampLine = (line) => {
+        let out = String(line).trim();
+        if (measure(out) <= lineLimit) return out;
+        while (out.length > 1 && measure(`${out}…`) > lineLimit) {
+          out = out.slice(0, -1).trim();
+        }
+        return `${out}…`;
+      };
+
+      forcedLineBreaks.forEach((line) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+
+        const words = trimmed.split(/\s+/);
+        if (words.length === 1 && measure(trimmed) > lineLimit) {
+          let current = "";
+          Array.from(trimmed).forEach((char) => {
+            if (current && measure(current + char) > lineLimit) {
+              allLines.push(current);
+              current = "";
+            }
+            current += char;
+          });
+          if (current) allLines.push(current);
+          return;
+        }
+
+        let current = "";
+        words.forEach((word) => {
+          const next = current ? `${current} ${word}` : word;
+          if (current && measure(next) > lineLimit) {
+            allLines.push(current);
+            current = word;
+          } else {
+            current = next;
+          }
+        });
+        if (current) allLines.push(current);
+      });
+
+      const overLimit = allLines.length > maxLines;
+      allLines = allLines.slice(0, maxLines);
+      if (overLimit && allLines.length) {
+        allLines[allLines.length - 1] = clampLine(allLines[allLines.length - 1]);
+      }
+
+      const lineWidths = allLines.map(measure);
+      const maxLength = Math.max(...lineWidths, 0);
+      if (getBoxInfo) return [maxLength, allLines.length];
+
+      const html = allLines
+        .map(
+          (d) => `<tspan x=${-maxLength / 2}em dy=${lineHeight}em>${d.trim()}</tspan>`
+        )
+        .join("");
+      return `<tspan x=${0}em y=${-allLines.length / 2}em>${html}</tspan>`;
+    },
+
+    phraseByCell: function (text, hierarchy, d, fontEm, baseFontPx = 16, maxLines = 2) {
+      if (!text || !d?.polygon) {
+        return this.phraseMultiline(text, false, undefined, 1.1, maxLines);
+      }
+      const bounds = this.getPolygonBounds(d.polygon);
+      const cellW = bounds.maxX - bounds.minX;
+      const fontPx = fontEm * baseFontPx;
+      const isLatin = !/[^\x00-\x7F]/.test(text);
+      const charPx = isLatin ? fontPx * 0.55 : fontPx;
+      const effectiveW = cellW * 0.58;
+      const rawChars = Math.floor(effectiveW / charPx);
+      const minChars = isLatin ? 8 : 5;
+      const maxChars = isLatin ? 22 : 13;
+      const charsPerLine = Math.max(minChars, Math.min(maxChars, rawChars));
+      return this.phraseMultiline(text, false, charsPerLine, 1.1, maxLines);
+    },
+
+    /**
      * Calculate label height offset based on font size and line count
      * @param {Object} self - VoronoiBubble instance
      * @param {Object} d - Current node
@@ -26840,7 +26943,8 @@
      */
     getLabelHeightOffset: function (self, d) {
       const fontSize = this.fontScale(self.hierarchy, d);
-      const [width, lineRows] = this.multiline(d.data.key, true);
+      const getLines = d.depth === 2 ? this.phraseMultiline : this.multiline;
+      const [width, lineRows] = getLines.call(this, d.data.key, true);
       const boxHeight = fontSize * 8 * (lineRows - 2);
       return boxHeight;
     },
@@ -26946,7 +27050,8 @@
     estimateLabelHeight: function (self, d, fontMultiplier) {
       fontMultiplier = fontMultiplier || 1;
       const fontSize = this.fontScale(self.hierarchy, d) * fontMultiplier;
-      const [maxWidth, lineCount] = this.multiline(d.data.key, true);
+      const getLines = d.depth === 2 ? this.phraseMultiline : this.multiline;
+      const [maxWidth, lineCount] = getLines.call(this, d.data.key, true);
       return Math.max(fontSize * 16 * lineCount * 1.5, 40);
     },
 
@@ -28705,7 +28810,8 @@ svg.vb-hover-enabled .vb-cell[data-depth="3"]:hover {
           .style("align-items", "center")
           .style("justify-content", "center")
           .html((d) => {
-            const defaultHtml = VoronoiBubbleHelpers.multiline(d.data.key);
+            const fontEm = VoronoiBubbleHelpers.fontScale(this.hierarchy, d) * this.params.subgroupLabelScale;
+            const defaultHtml = VoronoiBubbleHelpers.phraseByCell(d.data.key, this.hierarchy, d, fontEm);
             const context = VoronoiBubbleHelpers.createLabelContext(this, d, 2);
             return renderSubgroupLabel(d, defaultHtml, context);
           });
@@ -28740,7 +28846,10 @@ svg.vb-hover-enabled .vb-cell[data-depth="3"]:hover {
             ]})`;
             }
           )
-          .html((d) => VoronoiBubbleHelpers.multiline(d.data.key))
+          .html((d) => {
+            const fontEm = VoronoiBubbleHelpers.fontScale(this.hierarchy, d) * this.params.subgroupLabelScale;
+            return VoronoiBubbleHelpers.phraseByCell(d.data.key, this.hierarchy, d, fontEm);
+          })
           .attr("opacity", (d) =>
             d.value / this.totalValue >= ratioLimit ? 1 : 0
           );

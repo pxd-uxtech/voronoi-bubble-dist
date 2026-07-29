@@ -2,7 +2,7 @@
 
 [Korean README](README.ko.md)
 
-VoronoiBubble is a prebuilt renderer for drawing Voronoi treemaps easily, with optional semantic position hints. Pass tidy-style flat rows with `group -> subgroup -> item -> size` columns and it renders a three-level responsive SVG directly. You do not need to build `d3.hierarchy()` data, wire resize code, or hand-tune a raw geometric layout.
+VoronoiBubble is a practical renderer for drawing Voronoi treemaps easily, with optional semantic position hints. Pass tidy-style flat rows with `group -> subgroup -> item -> size` columns and it renders a three-level responsive SVG directly. You do not need to build `d3.hierarchy()` data, wire resize code, or hand-tune a raw geometric layout.
 
 Traditional Voronoi treemaps are good at showing hierarchy and area, but the cell positions usually carry little meaning. VoronoiBubble keeps the hierarchy and size encoding, while `positions` lets you guide groups or subgroups with UMAP-like coordinates so similar concepts can appear near each other.
 
@@ -67,6 +67,10 @@ See [`examples/`](examples/) for runnable examples. `examples/index.html` is the
 - Book maps, literature reviews, document classifications, and knowledge taxonomies.
 - Semantic maps where embedding or UMAP coordinates are passed through `positions`.
 
+## Label Guidance
+
+Use `subgroup` as a short heading, preferably five words or fewer. Put longer explanations in an extra field such as `description`, `summary`, or `review`, then show that field in a popup or tooltip. VoronoiBubble treats default subgroup labels as heading-like text and wraps them to at most two phrase lines.
+
 ## CDN
 
 ```text
@@ -111,8 +115,9 @@ new VoronoiBubble().render(data, {
 - [docs/API.md](docs/API.md): data format, options, callbacks, Public CSS API, popups, sentiment colormaps, positions, and label options.
 - [docs/MIGRATION.md](docs/MIGRATION.md): v1 -> v2 rename guide.
 - [docs/OPEN_CORE_STRATEGY.md](docs/OPEN_CORE_STRATEGY.md): open renderer, AffinityBubble API boundary, agent strategy, and positions policy.
+- [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md): follow-up work for labels, fonts, colors, examples, and agent distribution.
 - [CHANGELOG.md](CHANGELOG.md): release history.
-- [CONTRIBUTING.md](CONTRIBUTING.md): distribution repository notes.
+- [CONTRIBUTING.md](CONTRIBUTING.md): development and release workflow.
 - [examples/](examples/): runnable examples.
 
 ## Agent Instructions
@@ -125,26 +130,43 @@ This repository includes agent instructions in `skills/voronoi-bubble/`. ChatGPT
 
 Ask an agent for something like: “Create a popup-enabled Voronoi treemap HTML chart from this data.” Add an MCP server or ChatGPT UI later if you need automatic analysis, hosted rendering, or live external data.
 
-## Distribution Package
+## Development
 
-This repository contains prebuilt distribution files. Use the CDN URL above or download files from `dist/`.
+```bash
+npm install
+npm test
+npm run build
+npm run dev
+```
+
+Examples import `../dist/voronoi-bubble.standalone.js`, so run `npm run build` before opening them.
+
+### Repository Structure
 
 | Path | Description |
 |---|---|
-| `dist/` | Prebuilt ESM, UMD, and standalone bundles |
+| `src/VoronoiBubble.js` | Main renderer, options, events, and layout pipeline |
+| `src/VoronoiBubbleHelpers.js` | Colors, font scale, positioning helpers, sentiment palettes |
+| `src/LabelAdjuster.js` | Label overlap reduction inside cell boundaries |
+| `src/PebbleRenderer.js` | Pebble-style rounded outlines |
+| `src/PopupHelpers.js` | `createDOMPopup`, `getBubbleStyles`, `getPopupStyles` |
+| `src/nestingForVoronoi.js` | Flat rows -> hierarchical data conversion |
+| `src/utils/showVoronoiPopup.js` | Default popup helper with `{field}` formatting |
+| `src/index.js` | Public exports |
 | `examples/` | Runnable examples and gallery |
-| `docs/` | API, migration, and strategy documents |
-| `skills/` | Agent instructions and HTML templates for ChatGPT, Codex, Claude, and coding agents |
-| `.codex-plugin/` | Skills-only plugin metadata |
+| `tests/` | Vitest + jsdom tests |
+| `dist/` | Build output, gitignored in this source repository |
 
-## Source Development
+## Distribution
 
-This distribution repository is MIT-licensed. The source development repository and public contribution workflow may use a different license while they are being prepared.
-
-The AffinityBubble API is a separate commercial service for turning raw text into embeddings, clusters, hierarchy, UMAP positions, summaries, and representative excerpts. VoronoiBubble is the open distribution renderer for prepared hierarchical data and optional position hints.
+Build outputs are published to [`pxd-uxtech/voronoi-bubble-dist`](https://github.com/pxd-uxtech/voronoi-bubble-dist). See [CONTRIBUTING.md](CONTRIBUTING.md) for the maintainer release procedure.
 
 ## License
 
-The prebuilt bundles, examples, documentation, and agent instructions in this distribution repository are available under the [MIT License](LICENSE).
+[MIT](LICENSE) — Licensor: UXtechLab. Originally created by [@taekie](https://github.com/taekie).
+
+- Non-commercial and personal use is free.
+- Commercial use requires a separate UXtechLab license.
+- This version automatically converts to MIT on **2029-01-01**.
 
 See [LICENSE](LICENSE) for the full terms.

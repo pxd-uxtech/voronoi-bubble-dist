@@ -12,7 +12,6 @@ v2.0 기준 전체 API 레퍼런스입니다. v1에서 올라오는 경우 [MIGR
 - [색상](#색상)
 - [위치 제어와 재현성](#위치-제어와-재현성)
 - [라벨 표시 모드와 줌](#라벨-표시-모드와-줌)
-- [부록: 포지셔너 패치 패턴](#부록-포지셔너-패치-패턴)
 
 ---
 
@@ -197,6 +196,8 @@ document.getElementById('chart').appendChild(svg);
 | `sizeLimit` | `number` | `1000` | depth-3 값 라벨(`.vb-item-value`)을 이 값보다 큰 셀에만 표시 |
 | `renderGroupLabel` | `function\|null` | `null` | depth-1 라벨을 HTML로 직접 렌더 |
 | `renderSubgroupLabel` | `function\|null` | `null` | depth-2 라벨을 HTML로 직접 렌더 |
+
+`subgroup` 라벨은 문장이 아니라 짧은 heading으로 쓰는 것을 권장합니다. 한글은 5어절 이내, 영어는 5단어 이내가 가장 안정적입니다. 긴 설명은 `description`, `summary`, `review` 같은 별도 필드에 보존하고 popup/tooltip에서 보여주세요. 기본 depth-2 라벨은 최대 두 줄 phrase로 줄바꿈되며, 작은 셀에서는 말줄임표가 붙을 수 있습니다.
 
 ### 색상
 
@@ -623,7 +624,7 @@ new VoronoiBubble().render(data, { seedRandom: 'v2-report' });
 
 ### `positions`
 
-`{key, depth, x, y}` 배열로 특정 셀이 놓일 방향을 지시합니다. 좌표는 **입력 범위를 자동으로 0.15~0.85로 정규화**하므로 절대 픽셀이 아니라 **상대 위치**만 의미가 있습니다.
+`{key, depth, x, y}` 배열로 특정 셀이 놓일 방향을 지시합니다. 좌표는 **depth별 입력 범위를 자동으로 0.15~0.85로 정규화**하므로 절대 픽셀이 아니라 **상대 위치**만 의미가 있습니다. depth 2를 UMAP으로 만들었다면 모든 subgroup을 한 번에 투영한 좌표를 그대로 넣으면 됩니다.
 
 ```javascript
 new VoronoiBubble().render(data, {
@@ -643,6 +644,16 @@ new VoronoiBubble().render(data, {
 
 배열이 아니면(`null`, `'auto'` 등) 자동 배치입니다. 그룹이 2~3개면 자동 배치로 충분하고, 4개 이상이거나 특정 레이아웃이 필요할 때 직접 지정하세요.
 
+depth 1처럼 읽는 순서를 안정시키고 싶다면 grid helper로 기본 위치를 만들 수 있습니다.
+
+```javascript
+const groups = ['긍정', '중립', '부정', '기타'];
+
+new VoronoiBubble().render(data, {
+  positions: VoronoiBubbleHelpers.createGridPositions(groups, { depth: 1 })
+});
+```
+
 ### 의미 기반 배치 (임베딩 + UMAP)
 
 라벨이 많은 데이터에서는 의미가 비슷한 셀을 가까이 두는 편이 정보량이 높습니다.
@@ -657,7 +668,7 @@ new VoronoiBubble().render(data, {
 });
 ```
 
-**depth 2·3에 좌표를 줄 때는 아래 포지셔너 패치가 필요합니다.**
+depth 2·3 좌표도 depth별 전체 집합 기준으로 정규화됩니다. 하위 셀은 자기 부모 polygon 안에 있어야 하므로 최종 위치는 크기와 parent shape에 맞춰 조정되지만, 입력 좌표의 전역적인 방향성은 유지됩니다.
 
 ---
 
@@ -676,59 +687,6 @@ new VoronoiBubble().render(data, {
 `hoverVisualLimit`은 말단 셀이 그 수 이하일 때만 호버 하이라이트와 라벨 노출을 켭니다(셀이 많을 때의 호버 비용 방지). 기본값 `0`이면 항상 꺼져 있습니다.
 
 ---
-
-## 부록: 포지셔너 패치 패턴
-
-`positions`에 depth 2·3 좌표를 줘도 **화면 구석에 있는 그룹 안에서는 그 위치가 무시**됩니다. 기본 포지셔너가 `x × 전체 캔버스 폭`으로 캔버스 절대좌표를 만든 뒤 "부모 셀 안에 있으면 유지"를 검사하기 때문입니다 — 중앙 근처 셀만 통과하고 나머지는 각도 기반 근사 배치로 떨어집니다. 입력을 0~1로 정규화해도 내부에서 다시 `[0.15, 0.85]`로 정규화되므로 소용이 없습니다.
-
-`VoronoiBubbleHelpers.createInitialPositioner`를 **부모 셀 bbox 기준**으로 해석하도록 교체하면 해결됩니다. import 직후, `render()` 호출 전에 1회만 적용하세요.
-
-```javascript
-import { VoronoiBubble, VoronoiBubbleHelpers } from '...';
-
-const pointInPolygon = (pt, poly) => {
-  let inside = false;
-  for (let a = 0, b = poly.length - 1; a < poly.length; b = a++) {
-    const xi = poly[a][0], yi = poly[a][1], xj = poly[b][0], yj = poly[b][1];
-    if ((yi > pt[1]) !== (yj > pt[1]) &&
-        pt[0] < ((xj - xi) * (pt[1] - yi)) / (yj - yi) + xi)
-      inside = !inside;
-  }
-  return inside;
-};
-
-VoronoiBubbleHelpers.createInitialPositioner = function (self, initialPositions) {
-  return function (d, i, arr, sim) {
-    const clip = sim.clip();
-    let minx = Infinity, maxx = -Infinity, miny = Infinity, maxy = -Infinity;
-    for (const p of clip) {
-      if (p[0] < minx) minx = p[0];
-      if (p[0] > maxx) maxx = p[0];
-      if (p[1] < miny) miny = p[1];
-      if (p[1] > maxy) maxy = p[1];
-    }
-    const cx = (minx + maxx) / 2, cy = (miny + maxy) / 2;
-    if (d.depth === 0) return [cx, cy];
-
-    const pos = initialPositions.find((p) => p.depth === d.depth && p.key === d.data?.key);
-    if (pos) {
-      // 정규화된 pos를 부모 bbox로 매핑한 뒤, 안쪽으로 당기며 셀 내부 점을 찾는다
-      for (const k of [1, 0.7, 0.45, 0.25]) {
-        const x = cx + (minx + pos.x * (maxx - minx) - cx) * k;
-        const y = cy + (miny + pos.y * (maxy - miny) - cy) * k;
-        if (pointInPolygon([x, y], clip)) return [x, y];
-      }
-    }
-
-    let x, y;
-    do {
-      x = minx + (maxx - minx) * sim.prng()();
-      y = miny + (maxy - miny) * sim.prng()();
-    } while (!pointInPolygon([x, y], clip));
-    return [x, y];
-  };
-};
-```
 
 ### depth 2·3 `positions` 만들기 — 원래 순서대로 Z 그리드
 
@@ -753,6 +711,4 @@ Object.values(orderD2).forEach((s) => pushGrid(s, 2));
 Object.values(orderD3).forEach((t) => pushGrid(t, 3));
 ```
 
-> 패치 후에도 보로노이 시뮬레이션이 셀을 조금씩 움직이므로 **완벽한 격자가 아니라 "순서가 잘 드러나는" 수준**입니다. 정확한 격자가 필수라면 보로노이가 아닌 일반 그리드/트리맵을 쓰세요.
-
-> `VoronoiBubbleHelpers`는 내부 모듈을 그대로 노출한 것이라, 이 패치는 **안정 API 계약이 아닙니다.** 마이너 버전에서 포지셔너 시그니처가 바뀔 수 있으니 버전을 고정해 쓰세요.
+> 보로노이 시뮬레이션이 셀을 조금씩 움직이므로 **완벽한 격자가 아니라 "순서가 잘 드러나는" 수준**입니다. 정확한 격자가 필수라면 보로노이가 아닌 일반 그리드/트리맵을 쓰세요.

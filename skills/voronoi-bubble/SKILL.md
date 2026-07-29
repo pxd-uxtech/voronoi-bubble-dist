@@ -38,10 +38,11 @@ value: "count"
 Rules:
 
 - `group` is depth 1.
-- `subgroup` is depth 2.
+- `subgroup` is depth 2. Make it a short heading, preferably five words or fewer. Do not use full sentences as subgroup labels.
 - `item` is the leaf label.
 - `size` is the numeric weight.
-- Preserve useful extra columns such as `review`, `url`, `score`, or `summary`; popup templates can reference them with `{field}`.
+- Preserve useful extra columns such as `description`, `review`, `url`, `score`, or `summary`; popup templates can reference them with `{field}`.
+- Put long subgroup explanations in `description` or `summary`, then show them in popups or tooltips instead of placing the full sentence in `subgroup`.
 - For budget, book-map, or other prepared hierarchy data, map domain fields directly to `group`, `subgroup`, `item`, and `size`; do not force qualitative labels if the source already has a good hierarchy.
 - If data has only two levels, either set `levels` to two fields and use popup `format: "{subgroup}"`, or duplicate the second-level value into `item` for simpler labels/popups.
 

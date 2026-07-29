@@ -26579,7 +26579,7 @@ const VoronoiBubbleHelpers = {
     }
     // standard/strong: 채도와 형제간 대비는 v1대로 살리되, 밝아지는 방향만
     // 감쇠해 최소값 셀이 하얗게 뜨는 문제를 막는다.
-    const spread = (mode === "strong" ? 0.14 : 0.1) * depthScale;
+    const spread = (mode === "strong" ? 0.16 : 0.12) * depthScale;
     const vScale = d3.scaleLinear().domain(domain).range([0.3, 1]);
     if (c.l > 0.78) c.l = 0.78;
     const delta = (0.5 - vScale(value)) * spread;
@@ -26615,7 +26615,7 @@ const VoronoiBubbleHelpers = {
         this._variationDomain(self, hierarchy, 3),
         hierarchy.value,
         self.params?.colorVariation ?? "standard",
-        0.45 // depth-3 감쇠 — 서브그룹 경계가 항목 변주보다 먼저 읽히게
+        0.35 // depth-3 감쇠 — 서브그룹 경계가 항목 변주보다 먼저 읽히게
       );
       if (self.params.colorFunc) {
         const originalData = self.data.filter(

@@ -27,7 +27,7 @@ This makes it especially useful for qualitative data maps from reviews, surveys,
 <div id="chart"></div>
 
 <script type="module">
-  import { VoronoiBubble, VoronoiBubbleHelpers } from 'https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.2/dist/voronoi-bubble.standalone.js';
+  import { VoronoiBubble, VoronoiBubbleHelpers } from 'https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.3/dist/voronoi-bubble.standalone.js';
 
   const data = [
     { group: 'Positive', subgroup: 'Delivery', item: 'Fast delivery', size: 30, score: 5 },
@@ -74,7 +74,7 @@ Use `subgroup` as a short heading, preferably five words or fewer. Put longer ex
 ## CDN
 
 ```text
-https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.2/dist/voronoi-bubble.standalone.js
+https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.3/dist/voronoi-bubble.standalone.js
 ```
 
 | Situation | File | Loading style |

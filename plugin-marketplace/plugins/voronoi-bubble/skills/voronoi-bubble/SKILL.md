@@ -13,7 +13,7 @@ Emphasize that VoronoiBubble is the brand name for an easy Voronoi treemap rende
 
 - Generate a single browser-openable HTML file by default.
 - Use the pinned CDN UMD bundle unless the user asks for offline/local execution:
-  `https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.2/dist/voronoi-bubble.standalone.umd.js`
+  `https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.3/dist/voronoi-bubble.standalone.umd.js`
 - Use local UMD only for offline or repository-bound output:
   `./dist/voronoi-bubble.standalone.umd.js`
 - Do not use `@main`, `latest`, or an unpinned CDN URL.

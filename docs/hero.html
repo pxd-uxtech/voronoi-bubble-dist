@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<!-- Copyright (c) 2025 UXtechLab. VoronoiBubble — MIT License. See LICENSE. -->
+<!-- README hero 이미지 생성 페이지. 브라우저로 열어(로컬 dist 빌드 필요, file:// 가능)
+     1600px 폭 전체 캡처 → docs/images/hero.png 로 저장한다. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>hero source</title>
+  <style>
+    body { margin: 0; background: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    #chart { width: 1600px; margin: 0 auto; }
+    #chart svg { width: 100% !important; max-width: none !important; height: auto; display: block; }
+  </style>
+</head>
+<body>
+  <div id="chart"></div>
+  <script src="../dist/voronoi-bubble.standalone.umd.js"></script>
+  <script>
+    const { VoronoiBubble } = VoronoiBubbleModule;
+    const DATA = {
+      'Delivery': {
+        'Fast delivery': [['Arrived next day', 9], ['Same-day dispatch', 6], ['Early-morning drop-off', 5], ['Quick handling', 4], ['On time even on holidays', 2]],
+        'Delivery delays': [['Took over a week', 6], ['No tracking updates', 4], ['Courier kept rescheduling', 3], ['No delay notice', 2]],
+        'Packaging praise': [['Carefully packed', 7], ['Generous padding', 4], ['Neat and tidy box', 3]],
+        'Damage reports': [['Box arrived crushed', 3], ['Contents had leaked', 2], ['Lid came broken', 2]],
+      },
+      'Product Quality': {
+        'Materials & finish': [['Materials feel great', 8], ['Clean finishing', 6], ['Sturdy and solid', 4], ['No chemical smell', 3]],
+        'Durability issues': [['Broke within a month', 5], ['Stopped working fast', 4], ['Seams came loose', 3], ['Buttons got wobbly', 2]],
+        'Better than expected': [['Great for the price', 6], ['Feels like a premium brand', 4], ['Made a great gift', 3]],
+        'Inconsistent quality': [['Differs every order', 3], ['Thinner than last time', 3], ['Color differs from photos', 4]],
+      },
+      'Pricing': {
+        'Great value': [['Excellent value', 9], ['This quality at this price', 6], ['Will buy again', 5]],
+        'Price increases': [['Price keeps creeping up', 4], ['Pricier than before', 3], ['Package got smaller', 3]],
+        'Discounts & perks': [['Coupons are generous', 4], ['Subscription discount is nice', 3], ['Reward points add up', 2]],
+      },
+      'Customer Support': {
+        'Friendly support': [['Agents are kind', 6], ['Fixed it right away', 4], ['Exchange was easy', 3]],
+        'Slow responses': [['Replies take too long', 5], ['Phone never connects', 4], ['Chatbot loops forever', 3]],
+        'Refund friction': [['Refunds are a hassle', 4], ['Return shipping costs', 3], ['Refund arrives late', 3]],
+      },
+      'Packaging Design': {
+        'Design praise': [['Beautiful design', 8], ['Great as a gift', 5], ['Classy colors', 4], ['Looks good on a shelf', 2]],
+        'Label readability': [['Ingredients hard to find', 3], ['Print is too small', 3], ['Expiry date hard to spot', 2]],
+        'Redesign reactions': [['New packaging is better', 4], ['Miss the old design', 3], ['Container feels lighter', 2]],
+      },
+      'App Experience': {
+        'Easy ordering': [['Ordering is effortless', 7], ['Checkout is fast', 5], ['Reorder button is handy', 4]],
+        'App errors': [['App keeps crashing', 5], ['Keeps logging me out', 3], ['Images fail to load', 2]],
+        'Search & browsing': [['Search misses items', 4], ['Not enough filters', 3], ['Sold-out items still shown', 2]],
+        'Notification overload': [['Too many push alerts', 3], ['Only ad notifications', 2]],
+      },
+    };
+    const rows = [];
+    let total = 0;
+    for (const [group, subs] of Object.entries(DATA))
+      for (const [subgroup, items] of Object.entries(subs))
+        for (const [item, size] of items) { rows.push({ group, subgroup, item, size }); total += size; }
+    const svg = new VoronoiBubble().render(rows, {
+      width: 1200, height: 900, fontScale: 1.1,
+      title: `What ${total} customer reviews talk about`,
+      caption: 'VoronoiBubble · group → subgroup → item · cell area = number of mentions',
+      showGroupLabel: true, showPercent: true, labelMode: 'faded',
+      seedRandom: 'hero',
+    });
+    document.getElementById('chart').appendChild(svg);
+  </script>
+</body>
+</html>

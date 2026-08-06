@@ -26417,9 +26417,20 @@
       }))
     }));
 
+    // An empty group name means "no label", not "no data" — every bucket keeps its
+    // cells and simply renders unlabelled. A null/undefined key, on the other hand,
+    // usually means the field name is wrong, so say so once instead of drawing one
+    // silent unnamed blob.
+    if (kv.some((d) => d.key == null)) {
+      console.warn(
+        "[VoronoiBubble] group 값이 없는 행이 있습니다 — levels 첫 번째 필드명을 확인하세요. " +
+          "해당 행들은 이름 없는 그룹으로 렌더됩니다."
+      );
+    }
+
     return {
       key: "root_nest",
-      values: kv.filter((d) => d.key)
+      values: kv
     };
   }
 
@@ -26778,7 +26789,8 @@
      * @returns {string|number[]} HTML string for tspans, or [maxWidth, lineCount] if getBoxInfo is true
      */
     multiline: function (text, getBoxInfo, charsPerLine, lineHeight = 1) {
-      const inputText = text ? String(text) : "";
+      // `0` is a valid label, `''`/null are simply unlabelled.
+      const inputText = text == null ? "" : String(text);
       const isLatinText = !/[^A-Za-z0-9\s\-.,!?:;@]/.test(inputText);
       const lineLimit = charsPerLine ?? (isLatinText ? 9 : 7);
       const forcedLineBreaks = inputText.split("\n");
@@ -26870,7 +26882,7 @@
      * rather than full sentences.
      */
     phraseMultiline: function (text, getBoxInfo, charsPerLine, lineHeight = 1.1, maxLines = 2) {
-      const inputText = text ? String(text).trim() : "";
+      const inputText = text == null ? "" : String(text).trim();
       const isLatinText = !/[^A-Za-z0-9\s\-.,!?:;@]/.test(inputText);
       const lineLimit = charsPerLine ?? (isLatinText ? 22 : 13);
       const forcedLineBreaks = inputText.split("\n");
@@ -26944,9 +26956,44 @@
       return `<tspan x=${0}em y=${-allLines.length / 2}em>${html}</tspan>`;
     },
 
-    phraseByCell: function (text, hierarchy, d, fontEm, baseFontPx = 16, maxLines = 2) {
+    /** Upper bound for 'auto' subgroup line fitting. */
+    SUBGROUP_MAX_LINES_CAP: 6,
+
+    /**
+     * How many lines a depth-2 label may use inside its own cell.
+     * 'auto' fits the cell height so long labels stay readable in full when
+     * there is room; a number pins the cap.
+     * @param {Object} d - depth-2 node
+     * @param {number} fontEm - rendered label font size in em
+     * @param {number} [baseFontPx=16]
+     * @param {number|string} [maxLines='auto']
+     * @returns {number} line cap (>= 2 when auto)
+     */
+    subgroupLineCapacity: function (d, fontEm, baseFontPx = 16, maxLines = "auto") {
+      if (Number.isFinite(maxLines)) return Math.max(1, Math.floor(maxLines));
+      const lineHeightPx = fontEm * baseFontPx * 1.1;
+      if (!d?.polygon || !(lineHeightPx > 0)) return 2;
+      const bounds = this.getPolygonBounds(d.polygon);
+      const cellH = bounds.maxY - bounds.minY;
+      // The label sits at the cell centre and a voronoi cell narrows towards its
+      // top and bottom edges, so only the middle band is usable — the rest is
+      // left to the leaf labels underneath.
+      const fits = Math.floor((cellH * 0.5) / lineHeightPx);
+      return Math.max(2, Math.min(this.SUBGROUP_MAX_LINES_CAP, fits));
+    },
+
+    phraseByCell: function (
+      text,
+      hierarchy,
+      d,
+      fontEm,
+      baseFontPx = 16,
+      maxLines = "auto",
+      getBoxInfo = false
+    ) {
+      const lineCap = this.subgroupLineCapacity(d, fontEm, baseFontPx, maxLines);
       if (!text || !d?.polygon) {
-        return this.phraseMultiline(text, false, undefined, 1.1, maxLines);
+        return this.phraseMultiline(text, getBoxInfo, undefined, 1.1, lineCap);
       }
       const bounds = this.getPolygonBounds(d.polygon);
       const cellW = bounds.maxX - bounds.minX;
@@ -26958,7 +27005,26 @@
       const minChars = isLatin ? 8 : 5;
       const maxChars = isLatin ? 22 : 13;
       const charsPerLine = Math.max(minChars, Math.min(maxChars, rawChars));
-      return this.phraseMultiline(text, false, charsPerLine, 1.1, maxLines);
+      return this.phraseMultiline(text, getBoxInfo, charsPerLine, 1.1, lineCap);
+    },
+
+    /**
+     * Line count / width a depth-2 label actually renders with, using the same
+     * cell-aware wrapping as the renderer so layout maths stays in sync.
+     * @returns {number[]} [maxWidth, lineCount]
+     */
+    subgroupBoxInfo: function (self, d) {
+      const fontEm =
+        this.fontScale(self.hierarchy, d) * (self.params?.subgroupLabelScale ?? 1.05);
+      return this.phraseByCell(
+        d.data.key,
+        self.hierarchy,
+        d,
+        fontEm,
+        16,
+        self.params?.subgroupLabelMaxLines ?? "auto",
+        true
+      );
     },
 
     /**
@@ -26969,8 +27035,16 @@
      */
     getLabelHeightOffset: function (self, d) {
       const fontSize = this.fontScale(self.hierarchy, d);
-      const getLines = d.depth === 2 ? this.phraseMultiline : this.multiline;
-      const [width, lineRows] = getLines.call(this, d.data.key, true);
+      if (d.depth === 2) {
+        const [, lineRows] = this.subgroupBoxInfo(self, d);
+        // 1~2 lines keep their historical anchor; anything beyond that grows
+        // symmetrically around the two-line centre instead of sinking downwards.
+        return (
+          fontSize * 8 * (Math.min(lineRows, 2) - 2) -
+          fontSize * 4.8 * Math.max(lineRows - 2, 0)
+        );
+      }
+      const [width, lineRows] = this.multiline(d.data.key, true);
       const boxHeight = fontSize * 8 * (lineRows - 2);
       return boxHeight;
     },
@@ -27076,8 +27150,10 @@
     estimateLabelHeight: function (self, d, fontMultiplier) {
       fontMultiplier = fontMultiplier || 1;
       const fontSize = this.fontScale(self.hierarchy, d) * fontMultiplier;
-      const getLines = d.depth === 2 ? this.phraseMultiline : this.multiline;
-      const [maxWidth, lineCount] = getLines.call(this, d.data.key, true);
+      const [maxWidth, lineCount] =
+        d.depth === 2
+          ? this.subgroupBoxInfo(self, d)
+          : this.multiline(d.data.key, true);
       return Math.max(fontSize * 16 * lineCount * 1.5, 40);
     },
 
@@ -27945,6 +28021,7 @@ svg.vb-hover-enabled .vb-cell[data-depth="3"]:hover {
         fontScale: 1, // extra multiplier on top of the automatic canvas-relative font normalization
         groupLabelScale: 1.1, // depth-1 (group) label multiplier
         subgroupLabelScale: 1.05, // depth-2 (subgroup) label multiplier
+        subgroupLabelMaxLines: 'auto', // depth-2 label line cap — 'auto' fits the cell (2~6 lines), or a fixed number
 
         colors: VoronoiBubble.DEFAULT_COLORS,
         colorVariation: "standard", // 'standard'(그룹 내 명도 대비, v1 룩) | 'subtle'(차분·전역 일관) | 'strong'(강한 대비)
@@ -28838,7 +28915,9 @@ svg.vb-hover-enabled .vb-cell[data-depth="3"]:hover {
           .style("justify-content", "center")
           .html((d) => {
             const fontEm = VoronoiBubbleHelpers.fontScale(this.hierarchy, d) * this.params.subgroupLabelScale;
-            const defaultHtml = VoronoiBubbleHelpers.phraseByCell(d.data.key, this.hierarchy, d, fontEm);
+            const defaultHtml = VoronoiBubbleHelpers.phraseByCell(
+              d.data.key, this.hierarchy, d, fontEm, 16, this.params.subgroupLabelMaxLines
+            );
             const context = VoronoiBubbleHelpers.createLabelContext(this, d, 2);
             return renderSubgroupLabel(d, defaultHtml, context);
           });
@@ -28875,7 +28954,9 @@ svg.vb-hover-enabled .vb-cell[data-depth="3"]:hover {
           )
           .html((d) => {
             const fontEm = VoronoiBubbleHelpers.fontScale(this.hierarchy, d) * this.params.subgroupLabelScale;
-            return VoronoiBubbleHelpers.phraseByCell(d.data.key, this.hierarchy, d, fontEm);
+            return VoronoiBubbleHelpers.phraseByCell(
+              d.data.key, this.hierarchy, d, fontEm, 16, this.params.subgroupLabelMaxLines
+            );
           })
           .attr("opacity", (d) =>
             d.value / this.totalValue >= ratioLimit ? 1 : 0

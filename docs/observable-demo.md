@@ -21,7 +21,7 @@ Library: [pxd-uxtech/voronoi-bubble-dist](https://github.com/pxd-uxtech/voronoi-
 ```javascript
 VB = {
   const m = await import(
-    "https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.3/dist/voronoi-bubble.standalone.js"
+    "https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.2.0/dist/voronoi-bubble.standalone.js"
   );
   return m;
 }
@@ -240,7 +240,7 @@ flareChart = {
 
 메모
 
-- CDN 핀(`@v2.1.3`)은 릴리스에 맞춰 올리면 됩니다 — 태그 핀이라 기존 노트북은 깨지지 않습니다.
+- CDN 핀(`@v2.2.0`)은 릴리스에 맞춰 올리면 됩니다 — 태그 핀이라 기존 노트북은 깨지지 않습니다.
 - 팝업(`showVoronoiPopup`)은 추가 CSS 없이 동작합니다. Observable 페이지의 `document.body`에 절대 위치로 붙습니다.
 - 반응형: 반환된 SVG에 `width:100%; height:auto; max-width:1200px`가 이미 걸려 있어 셀 폭에 맞춰 줄어듭니다.
 - 세계 인구 셀의 데이터 출처: [world-countries](https://www.npmjs.com/package/world-countries)(지역 계층·좌표), [country-json](https://www.npmjs.com/package/country-json)(인구), [World Bank API](https://api.worldbank.org)(일인당 GDP). Taiwan·Kosovo는 인구/GDP 소스에 없어 제외됩니다.

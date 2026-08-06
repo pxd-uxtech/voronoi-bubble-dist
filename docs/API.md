@@ -18,7 +18,7 @@ v2.0 기준 전체 API 레퍼런스입니다. v1에서 올라오는 경우 [MIGR
 ## 로드하기
 
 ```
-https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.3/dist/voronoi-bubble.standalone.js
+https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.2.0/dist/voronoi-bubble.standalone.js
 ```
 
 
@@ -26,14 +26,14 @@ https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.3/dist/voronoi-b
 
 ```javascript
 import { VoronoiBubble, showVoronoiPopup }
-  from 'https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.3/dist/voronoi-bubble.standalone.js';
+  from 'https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.2.0/dist/voronoi-bubble.standalone.js';
 ```
 
 Observable에서는 동적 import를 씁니다.
 
 ```javascript
 {
-  const m = await import("https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.3/dist/voronoi-bubble.standalone.js");
+  const m = await import("https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.2.0/dist/voronoi-bubble.standalone.js");
   VoronoiBubble = m.VoronoiBubble;
   showVoronoiPopup = m.showVoronoiPopup;
   return m;
@@ -43,7 +43,7 @@ Observable에서는 동적 import를 씁니다.
 ### `<script>` 태그 (UMD, `file://`에서도 동작)
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.1.3/dist/voronoi-bubble.standalone.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.2.0/dist/voronoi-bubble.standalone.umd.js"></script>
 <script>
   const { VoronoiBubble, showVoronoiPopup } = VoronoiBubbleModule;
 </script>
@@ -193,11 +193,12 @@ document.getElementById('chart').appendChild(svg);
 | `fontScale` | `number` | `1` | 라벨 폰트 추가 배율. 폰트는 기본적으로 캔버스 면적에 맞춰 자동 정규화됩니다(기준 1200×900, 계수 `√(W×H/1,080,000)`) — 작은 캔버스로 렌더해도 글자가 셀과 함께 줄어듭니다. 이 옵션은 그 위에 곱해지는 수동 미세조정 값입니다 |
 | `groupLabelScale` | `number` | `1.1` | depth-1(group) 라벨 폰트 배율. 커스텀 렌더러의 `ctx.fontSize`에도 반영됩니다 |
 | `subgroupLabelScale` | `number` | `1.05` | depth-2(subgroup) 라벨 폰트 배율. 그룹-서브그룹 크기 위계를 조절합니다 |
+| `subgroupLabelMaxLines` | `'auto'\|number` | `'auto'` | depth-2 라벨의 최대 줄 수. `'auto'`는 셀 높이에 맞춰 2~6줄까지 늘려 라벨을 가능한 한 온전히 보여줍니다. 숫자를 주면 그 값으로 고정됩니다(예: `2`) |
 | `sizeLimit` | `number` | `1000` | depth-3 값 라벨(`.vb-item-value`)을 이 값보다 큰 셀에만 표시 |
 | `renderGroupLabel` | `function\|null` | `null` | depth-1 라벨을 HTML로 직접 렌더 |
 | `renderSubgroupLabel` | `function\|null` | `null` | depth-2 라벨을 HTML로 직접 렌더 |
 
-`subgroup` 라벨은 문장이 아니라 짧은 heading으로 쓰는 것을 권장합니다. 한글은 5어절 이내, 영어는 5단어 이내가 가장 안정적입니다. 긴 설명은 `description`, `summary`, `review` 같은 별도 필드에 보존하고 popup/tooltip에서 보여주세요. 기본 depth-2 라벨은 최대 두 줄 phrase로 줄바꿈되며, 작은 셀에서는 말줄임표가 붙을 수 있습니다.
+`subgroup` 라벨은 문장이 아니라 짧은 heading으로 쓰는 것을 권장합니다. 한글은 5어절 이내, 영어는 5단어 이내가 가장 안정적입니다. 긴 설명은 `description`, `summary`, `review` 같은 별도 필드에 보존하고 popup/tooltip에서 보여주세요. 기본 depth-2 라벨은 셀 폭에 맞춰 줄바꿈되고, 줄 수는 셀 높이가 허용하는 만큼(최대 6줄) 늘어나 긴 라벨도 가능한 한 온전히 표시됩니다. 그래도 담기지 않으면 마지막 줄에 말줄임표가 붙습니다. 예전처럼 두 줄로 묶고 싶다면 `subgroupLabelMaxLines: 2`를 지정하세요.
 
 ### 색상
 

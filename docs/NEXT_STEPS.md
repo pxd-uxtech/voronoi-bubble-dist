@@ -51,6 +51,10 @@ This document records follow-up work discussed during the open renderer and agen
 
 ## Color Defaults
 
+- RESOLVED (2026-07-29): 차분한 변주를 기본으로 쓰니 채도·그룹 내 대비가 너무 죽는다는 실물 피드백이 있어,
+  계획대로 `colorVariation` 옵션(`'standard' | 'subtle' | 'strong'`)으로 분리했다.
+  기본값은 이전 룩을 복원한 `standard`(형제 도메인 + 채도 보존)이고,
+  이번에 시도한 차분한 룩은 `subtle`로 존치한다.
 - The latest color variation change intentionally reduces the jewel-like effect.
 - Keep checking default palette and named presets separately:
   - default pastel,
@@ -87,6 +91,10 @@ This document records follow-up work discussed during the open renderer and agen
   - use local dist for offline/privacy-sensitive rendering,
   - preserve extra fields for popups,
   - keep subgroup labels short and move explanations into popup fields.
+- RESOLVED (2026-07-29): 클린룸 관찰 결과 — SKILL.md + docs/API.md만 허용한 에이전트가
+  `sentiment`(평점 컬러맵), `positions`(그룹 좌측 고정), `onClick` 팝업을 전부 스스로 찾아
+  콘솔 에러 0건으로 구현했다. SKILL.md 예제 보강은 불필요.
+  발견된 마찰 2건(문서 간 CDN 핀 불일치, positions 부분 지정 폴백 미문서화)은 v2.1.1에서 해소.
 - Watch how agents use the skill from only `SKILL.md` plus `docs/API.md`.
   If they miss important options such as `positions`, `colors`, or `sentiment`, add short examples directly to `SKILL.md`.
 

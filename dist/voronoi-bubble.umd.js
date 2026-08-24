@@ -567,6 +567,42 @@
         return points.every((point) => d3.polygonContains(polygon, point));
       }
 
+      // Find a nearby centre where the complete label rectangle stays inside its
+      // own Voronoi cell. Subgroup sites can sit close to the outer chart edge;
+      // centring a long heading there used to clip its first/last lines at the
+      // SVG boundary even though the wrapping itself preserved the text.
+      function findPolygonPlacement(box, polygon) {
+        if (!polygon?.length) return null;
+        const bounds = getCellBounds({ polygon });
+        if (!bounds) return null;
+        const site = polygon.site || {};
+        const centroid = d3.polygonCentroid(polygon);
+        const candidates = [
+          [box.x, box.y],
+          [site.x, site.y],
+          centroid,
+        ].filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
+
+        // Irregular cells often have their largest usable rectangle away from
+        // the weighted site. Probe a small deterministic grid, nearest first.
+        for (let yi = 1; yi <= 7; yi += 1) {
+          for (let xi = 1; xi <= 7; xi += 1) {
+            const x = bounds.minX + (bounds.maxX - bounds.minX) * xi / 8;
+            const y = bounds.minY + (bounds.maxY - bounds.minY) * yi / 8;
+            if (d3.polygonContains(polygon, [x, y])) candidates.push([x, y]);
+          }
+        }
+        candidates.sort((a, b) =>
+          Math.hypot(a[0] - box.x, a[1] - box.y) -
+          Math.hypot(b[0] - box.x, b[1] - box.y)
+        );
+        for (const [x, y] of candidates) {
+          const moved = moveBox(box, x - box.x, y - box.y);
+          if (boxFitsPolygon(moved, polygon)) return { dx: x - box.x, dy: y - box.y };
+        }
+        return null;
+      }
+
       function setLabelPosition(label, box, x, y) {
         if (label.node()?.tagName === "foreignObject") {
           const dx = x - box.originalX;
@@ -753,9 +789,38 @@
 
         const regionLabel = d3.select(parentRegionElement);
         const isFieldForeignObject = fieldLabel.node()?.tagName === "foreignObject";
-        const fieldBox = isFieldForeignObject
+        let fieldBox = isFieldForeignObject
           ? getForeignObjectBox(fieldLabel)
           : getLabelBox(fieldLabel);
+
+        // Keep the full subgroup heading visible. First try repositioning it;
+        // when the cell is too narrow, reduce only the label font until the
+        // complete wrapped text rectangle fits. Text content is never truncated
+        // by this step.
+        if (fieldBox && data.polygon && !boxFitsPolygon(fieldBox, data.polygon)) {
+          let placement = findPolygonPlacement(fieldBox, data.polygon);
+          if (!placement && !isFieldForeignObject) {
+            const initialFontEm = parseFloat(fieldLabel.style("font-size"));
+            if (Number.isFinite(initialFontEm) && initialFontEm > 0) {
+              for (let scale = 0.92; scale >= 0.5 && !placement; scale -= 0.08) {
+                fieldLabel.style("font-size", `${initialFontEm * scale}em`);
+                fieldBox = getLabelBox(fieldLabel);
+                if (fieldBox) placement = findPolygonPlacement(fieldBox, data.polygon);
+              }
+            }
+          }
+          if (fieldBox && placement) {
+            setLabelPosition(
+              fieldLabel,
+              fieldBox,
+              fieldBox.originalX + placement.dx,
+              fieldBox.originalY + placement.dy
+            );
+            fieldBox = isFieldForeignObject
+              ? getForeignObjectBox(fieldLabel)
+              : getLabelBox(fieldLabel);
+          }
+        }
         const isForeignObject = parentRegionElement.tagName === "foreignObject";
         const regionBox = isForeignObject
           ? getForeignObjectBox(regionLabel)

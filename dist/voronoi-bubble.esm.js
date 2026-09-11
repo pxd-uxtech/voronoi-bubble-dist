@@ -72,6 +72,14 @@ d3.seedrandom = seedrandomModule.default || seedrandomModule;
  */
 class PebbleRenderer {
   /**
+   * Above this interior angle a vertex is treated as a facet of a curve rather
+   * than as a corner to round (150°).
+   */
+  static get GENTLE_JOINT() {
+    return (Math.PI * 150) / 180;
+  }
+
+  /**
    * Create a PebbleRenderer instance
    * @param {Object} [d3Instance] - Optional D3 instance (defaults to global d3)
    */
@@ -167,7 +175,17 @@ class PebbleRenderer {
       if (polygon && polygon.length > 0) {
         const originalPath =
           'M' + polygon.map((p) => `${p[0]},${p[1]}`).join('L') + 'Z';
-        const smoothedPath = self.smoothPath(originalPath, round);
+        // Where cells meet, the voronoi leaves the shared corner as two points
+        // a few pixels apart rather than one. That stub edge caps the fillet at
+        // its own length, so the junction stays a hard right angle no matter
+        // what `round` says. Merge those stubs first — measured against this
+        // polygon's own edges, so the threshold follows the chart's scale
+        // instead of deleting real corner detail on a small one.
+        const smoothedPath = self.smoothPath(
+          originalPath,
+          round,
+          self._stubLength(polygon)
+        );
 
         outlineGroup
           .append('path')
@@ -179,6 +197,25 @@ class PebbleRenderer {
           .style('fill-rule', 'evenodd');
       }
     });
+  }
+
+  /**
+   * Length below which an edge is a junction stub rather than a real side.
+   * Taken from this polygon's own edges so it scales with the chart.
+   * @param {number[][]} polygon - Array of [x, y] coordinate pairs
+   * @returns {number} threshold in user units
+   * @private
+   */
+  _stubLength(polygon) {
+    const n = polygon.length;
+    if (n < 4) return 0;
+    const lengths = polygon
+      .map((p, i) => {
+        const q = polygon[(i + 1) % n];
+        return Math.hypot(q[0] - p[0], q[1] - p[1]);
+      })
+      .sort((a, b) => a - b);
+    return lengths[Math.floor(n / 2)] * 0.35;
   }
 
   /**
@@ -222,16 +259,30 @@ class PebbleRenderer {
       const dot = inNorm.x * outNorm.x + inNorm.y * outNorm.y;
       let angle = Math.acos(Math.max(-1, Math.min(1, dot)));
 
-      const adjustedRadius =
-        angle < Math.PI / 4.5 ? cornerRadius / 2 : cornerRadius;
       const halfAngle = angle / 2;
+      // Never eat more than (almost) half an edge, so the curves of two
+      // neighbouring vertices cannot cross on the edge they share.
       const maxRadiusByLength = Math.min(lenIn, lenOut) / 2.1;
-      const d = Math.min(
-        lenIn,
-        lenOut,
-        adjustedRadius / Math.tan(halfAngle),
-        maxRadiusByLength / Math.tan(halfAngle)
-      );
+
+      let d;
+      if (angle >= PebbleRenderer.GENTLE_JOINT) {
+        // A near-straight joint is not a corner to fillet — it is one facet of
+        // a polyline standing in for a curve (a voronoi clip traces its round
+        // corners with ~13° steps). A fillet radius divided by tan(~85°) rounds
+        // it by a pixel and the facets survive, so take half of each edge
+        // instead: consecutive curves then meet at the edge midpoints and the
+        // facets read as one smooth arc.
+        d = maxRadiusByLength;
+      } else {
+        const adjustedRadius =
+          angle < Math.PI / 4.5 ? cornerRadius / 2 : cornerRadius;
+        d = Math.min(
+          lenIn,
+          lenOut,
+          adjustedRadius / Math.tan(halfAngle),
+          maxRadiusByLength / Math.tan(halfAngle)
+        );
+      }
 
       const pStart = [p1[0] + inNorm.x * d, p1[1] + inNorm.y * d];
       const pEnd = [p1[0] + outNorm.x * d, p1[1] + outNorm.y * d];
@@ -318,12 +369,27 @@ class PebbleRenderer {
  * for voronoi treemap visualizations. Adjusts label positions to prevent
  * overlapping between:
  * - Field labels and region labels
- * - Sector labels and field labels
+ * - Item labels (label + value block) and everything around them
  *
  * Uses setTimeout-based deferred processing to ensure DOM elements
  * are fully rendered before measuring and adjusting positions.
+ *
+ * Every element the adjuster touches carries its untouched render position in
+ * `data-anchor-x` / `data-anchor-y`. Each run resets to those anchors first, so
+ * the original position is always the default, moves are measured from it, and
+ * calling adjust() repeatedly converges instead of drifting.
  */
 
+
+/** Selector for every label this class may move. */
+const MANAGED_LABELS = [
+  '.vb-group-label',
+  '.vb-group-label-html',
+  '.vb-subgroup-label',
+  '.vb-subgroup-label-html',
+  '.vb-item-label',
+  '.vb-item-value'
+].join(', ');
 
 /**
  * LabelAdjuster - Label collision detection and adjustment
@@ -348,26 +414,43 @@ class LabelAdjuster {
    * @param {number} [options.delay=100] - Delay in ms before adjustment (for DOM rendering)
    * @param {number} [options.maxParentMove=18] - Maximum group-label movement in pixels
    * @param {number} [options.cellPadding=2] - Minimum label padding from polygon edges
+   * @param {number|string} [options.maxItemMove='auto'] - Maximum item-block
+   *   movement in pixels; 'auto' scales the budget with the cell size
+   * @param {number} [options.valueGapRatio=0.2] - Gap between label and value, as a
+   *   fraction of the value's line height
+   * @param {boolean} [options.adjustGroupLabels=true] - Run the group/subgroup pass
    */
   adjust(treemap, options = {}) {
     const {
       verticalSpacing = 0,
       delay = 100,
       maxParentMove = 18,
-      cellPadding = 2
+      cellPadding = 2,
+      maxItemMove = 'auto',
+      valueGapRatio = 0.2,
+      adjustGroupLabels = true
     } = options;
     const d3 = this.d3;
+
+    // A block pushed outside its own cell reads worse than a small overlap, so
+    // leaving the polygon costs more than any near-miss collision.
+    const OUTSIDE_CELL_PENALTY = 120;
 
     setTimeout(() => {
       const svg = d3.select(treemap);
 
-      svg.selectAll(".vb-subgroup-label, .vb-subgroup-label-html").each(function () {
-        adjustFieldLabel(d3.select(this));
+      // Start from the render-time anchors so a second run reproduces the first.
+      svg.selectAll(MANAGED_LABELS).each(function () {
+        resetToAnchor(d3.select(this));
       });
 
-      svg.selectAll(".vb-item-label").each(function () {
-        adjustSectorLabel(d3.select(this));
-      });
+      if (adjustGroupLabels) {
+        svg.selectAll(".vb-subgroup-label, .vb-subgroup-label-html").each(function () {
+          adjustFieldLabel(d3.select(this));
+        });
+      }
+
+      adjustItemBlocks(svg);
     }, delay);
 
     /**
@@ -380,6 +463,79 @@ class LabelAdjuster {
       const match = transform.match(/translate\(([^,]+),([^)]+)\)/);
       if (!match) return { x: 0, y: 0 };
       return { x: parseFloat(match[1]), y: parseFloat(match[2]) };
+    }
+
+    /**
+     * Read (and on first sight record) the untouched render position of a label.
+     * @param {Object} element - D3 selection
+     * @returns {Object} { x, y }
+     */
+    function anchorOf(element) {
+      const node = element.node();
+      if (!node) return { x: 0, y: 0 };
+      const ax = parseFloat(element.attr("data-anchor-x"));
+      const ay = parseFloat(element.attr("data-anchor-y"));
+      if (Number.isFinite(ax) && Number.isFinite(ay)) return { x: ax, y: ay };
+
+      const current =
+        node.tagName === "foreignObject"
+          ? {
+              x: parseFloat(element.attr("x") || 0),
+              y: parseFloat(element.attr("y") || 0)
+            }
+          : parseTransform(element.attr("transform"));
+      element.attr("data-anchor-x", current.x).attr("data-anchor-y", current.y);
+      return current;
+    }
+
+    /**
+     * Read (and on first sight record) the font size the renderer gave a label,
+     * in em. Fitting may shrink a label, so the original has to be recoverable
+     * or a second run would shrink it again.
+     * @param {Object} element - D3 selection
+     * @returns {number} font size in em, or NaN when it has none
+     */
+    function baseFontSize(element) {
+      const stored = parseFloat(element.attr("data-base-font-em"));
+      if (Number.isFinite(stored)) return stored;
+      const current = parseFloat(element.style("font-size"));
+      if (Number.isFinite(current)) {
+        element.attr("data-base-font-em", current);
+      }
+      return current;
+    }
+
+    /**
+     * Put a label back where — and at the size — the renderer originally left it.
+     * @param {Object} element - D3 selection
+     */
+    function resetToAnchor(element) {
+      const node = element.node();
+      if (!node) return;
+      const anchor = anchorOf(element);
+      if (node.tagName === "foreignObject") {
+        element.attr("x", anchor.x).attr("y", anchor.y);
+      } else {
+        setTranslate(element, anchor.x, anchor.y);
+      }
+      const baseFont = parseFloat(element.attr("data-base-font-em"));
+      if (Number.isFinite(baseFont)) {
+        element.style("font-size", `${baseFont}em`);
+      }
+    }
+
+    /**
+     * Rewrite only the translate() of a transform, keeping anything else
+     * (the zoom handler appends a scale()).
+     * @param {Object} element - D3 selection
+     * @param {number} x
+     * @param {number} y
+     */
+    function setTranslate(element, x, y) {
+      const rest = (element.attr("transform") || "")
+        .replace(/translate\([^)]*\)/, "")
+        .trim();
+      element.attr("transform", `translate(${x},${y})${rest ? " " + rest : ""}`);
     }
 
     /**
@@ -400,6 +556,30 @@ class LabelAdjuster {
     }
 
     /**
+     * Overlapping area of two centre-form boxes, in px².
+     * Boxes are shrunk by `pad` first so hairline contact is not a collision.
+     * @returns {number} overlap area (0 when clear)
+     */
+    function overlapArea(box1, box2, pad = 1) {
+      const dx =
+        Math.min(box1.x + box1.width / 2, box2.x + box2.width / 2) -
+        Math.max(box1.x - box1.width / 2, box2.x - box2.width / 2) -
+        pad * 2;
+      if (dx <= 0) return 0;
+      const dy =
+        Math.min(box1.y + box1.height / 2, box2.y + box2.height / 2) -
+        Math.max(box1.y - box1.height / 2, box2.y - box2.height / 2) -
+        pad * 2 -
+        verticalSpacing;
+      if (dy <= 0) return 0;
+      return dx * dy;
+    }
+
+    function totalOverlap(box, others) {
+      return others.reduce((sum, other) => sum + overlapArea(box, other), 0);
+    }
+
+    /**
      * Calculate required vertical move distance to resolve overlap
      * @param {Object} box1 - First bounding box
      * @param {Object} box2 - Second bounding box
@@ -415,6 +595,74 @@ class LabelAdjuster {
       if (box1Bottom <= box2Top || box1Top >= box2Bottom) return 0;
       if (box1.y < box2.y) return box1Bottom - box2Top;
       return box2Bottom - box1Top;
+    }
+
+    /**
+     * Raw getBBox of a text element (its own transform excluded).
+     * @param {Object} element - D3 selection
+     * @returns {Object|null} { x, y, width, height } or null when unmeasurable
+     */
+    function rawBox(element) {
+      const node = element.node();
+      if (!node || typeof node.getBBox !== "function") return null;
+      const bbox = node.getBBox();
+      if (!(bbox.width > 0) || !(bbox.height > 0)) return null;
+      return { x: bbox.x, y: bbox.y, width: bbox.width, height: bbox.height };
+    }
+
+    /** Centre-form box of a raw bbox placed at a given translate. */
+    function boxAt(raw, tx, ty) {
+      return {
+        x: tx + raw.x + raw.width / 2,
+        y: ty + raw.y + raw.height / 2,
+        width: raw.width,
+        height: raw.height
+      };
+    }
+
+    /** Shift a plain centre-form box (no originalX/Y bookkeeping). */
+    function shiftBox(box, dx, dy) {
+      return { ...box, x: box.x + dx, y: box.y + dy };
+    }
+
+    /** Smallest centre-form box containing both inputs. */
+    function unionBox(box1, box2) {
+      if (!box1) return box2;
+      if (!box2) return box1;
+      const minX = Math.min(box1.x - box1.width / 2, box2.x - box2.width / 2);
+      const maxX = Math.max(box1.x + box1.width / 2, box2.x + box2.width / 2);
+      const minY = Math.min(box1.y - box1.height / 2, box2.y - box2.height / 2);
+      const maxY = Math.max(box1.y + box1.height / 2, box2.y + box2.height / 2);
+      return {
+        x: (minX + maxX) / 2,
+        y: (minY + maxY) / 2,
+        width: maxX - minX,
+        height: maxY - minY
+      };
+    }
+
+    /**
+     * A label that is not painted must not push anyone around. Hiding happens
+     * two ways here: `opacity` (item/subgroup labels, foreignObject group
+     * labels) and `fill-opacity` + `stroke-opacity` (SVG group labels, which
+     * stay in the DOM when `showGroupLabel` is off).
+     * @param {Object} element - D3 selection
+     * @returns {boolean}
+     */
+    function isVisible(element) {
+      const node = element.node();
+      if (!node) return false;
+      const zero = (value) => {
+        const parsed = parseFloat(value);
+        return Number.isFinite(parsed) && parsed === 0;
+      };
+      if (zero(element.attr("opacity")) || zero(node.style?.opacity)) return false;
+      const fillHidden =
+        zero(element.attr("fill-opacity")) || zero(node.style?.fillOpacity);
+      const strokeShown =
+        parseFloat(element.attr("stroke-opacity")) > 0 ||
+        parseFloat(node.style?.strokeOpacity) > 0;
+      return !(fillHidden && !strokeShown);
     }
 
     /**
@@ -500,6 +748,18 @@ class LabelAdjuster {
       };
     }
 
+    /** Box of any managed label, whichever element type it is. */
+    function measureLabel(element) {
+      const node = element.node();
+      if (!node) return null;
+      const box =
+        node.tagName === "foreignObject"
+          ? getForeignObjectBox(element)
+          : getLabelBox(element);
+      if (!box || !(box.width > 0) || !(box.height > 0)) return null;
+      return box;
+    }
+
     /**
      * Get cell polygon bounds from node data
      * @param {Object} data - Node data with polygon
@@ -544,10 +804,14 @@ class LabelAdjuster {
       return points.every((point) => d3.polygonContains(polygon, point));
     }
 
-    // Find a nearby centre where the complete label rectangle stays inside its
-    // own Voronoi cell. Subgroup sites can sit close to the outer chart edge;
-    // centring a long heading there used to clip its first/last lines at the
-    // SVG boundary even though the wrapping itself preserved the text.
+    /**
+     * Find the nearest centre at which the whole label box sits inside its own
+     * cell. A subgroup site can land close to the cell edge, and centring a
+     * long heading there pushes its first or last line outside the cell.
+     * @param {Object} box - centre-form label box
+     * @param {number[][]} polygon - the label's own cell
+     * @returns {Object|null} { dx, dy }, or null when nothing fits
+     */
     function findPolygonPlacement(box, polygon) {
       if (!polygon?.length) return null;
       const bounds = getCellBounds({ polygon });
@@ -557,27 +821,79 @@ class LabelAdjuster {
       const candidates = [
         [box.x, box.y],
         [site.x, site.y],
-        centroid,
+        centroid
       ].filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
 
-      // Irregular cells often have their largest usable rectangle away from
-      // the weighted site. Probe a small deterministic grid, nearest first.
+      // An irregular cell often holds its widest usable rectangle away from the
+      // weighted site, so probe a small fixed grid too — fixed, so the result
+      // is the same on every run.
       for (let yi = 1; yi <= 7; yi += 1) {
         for (let xi = 1; xi <= 7; xi += 1) {
-          const x = bounds.minX + (bounds.maxX - bounds.minX) * xi / 8;
-          const y = bounds.minY + (bounds.maxY - bounds.minY) * yi / 8;
+          const x = bounds.minX + ((bounds.maxX - bounds.minX) * xi) / 8;
+          const y = bounds.minY + ((bounds.maxY - bounds.minY) * yi) / 8;
           if (d3.polygonContains(polygon, [x, y])) candidates.push([x, y]);
         }
       }
-      candidates.sort((a, b) =>
-        Math.hypot(a[0] - box.x, a[1] - box.y) -
-        Math.hypot(b[0] - box.x, b[1] - box.y)
+      candidates.sort(
+        (a, b) =>
+          Math.hypot(a[0] - box.x, a[1] - box.y) -
+          Math.hypot(b[0] - box.x, b[1] - box.y)
       );
       for (const [x, y] of candidates) {
         const moved = moveBox(box, x - box.x, y - box.y);
-        if (boxFitsPolygon(moved, polygon)) return { dx: x - box.x, dy: y - box.y };
+        if (boxFitsPolygon(moved, polygon)) {
+          return { dx: x - box.x, dy: y - box.y };
+        }
       }
       return null;
+    }
+
+    /**
+     * Keep a whole subgroup heading inside its cell: move it first, and only
+     * when the cell is too narrow for that, shrink the label's font until the
+     * wrapped text fits. Text is never truncated here.
+     * @param {Object} fieldLabel - D3 selection
+     * @param {Object} box - its current box
+     * @param {number[][]} polygon - its cell
+     * @param {boolean} isForeignObject
+     * @returns {Object|null} the label's box after fitting
+     */
+    function fitFieldLabelToCell(fieldLabel, box, polygon, isForeignObject) {
+      let fieldBox = box;
+      if (!fieldBox || !polygon || boxFitsPolygon(fieldBox, polygon)) {
+        return fieldBox;
+      }
+
+      let placement = findPolygonPlacement(fieldBox, polygon);
+      if (!placement && !isForeignObject) {
+        const baseFont = baseFontSize(fieldLabel);
+        if (Number.isFinite(baseFont) && baseFont > 0) {
+          for (let scale = 0.92; scale >= 0.5 && !placement; scale -= 0.08) {
+            fieldLabel.style("font-size", `${baseFont * scale}em`);
+            fieldBox = getLabelBox(fieldLabel);
+            if (fieldBox) placement = findPolygonPlacement(fieldBox, polygon);
+          }
+          if (!placement) {
+            // Even at half size it does not fit — shrinking bought nothing, so
+            // hand the label back at the size the renderer chose.
+            fieldLabel.style("font-size", `${baseFont}em`);
+            fieldBox = getLabelBox(fieldLabel);
+          }
+        }
+      }
+
+      if (fieldBox && placement) {
+        setLabelPosition(
+          fieldLabel,
+          fieldBox,
+          fieldBox.originalX + placement.dx,
+          fieldBox.originalY + placement.dy
+        );
+        fieldBox = isForeignObject
+          ? getForeignObjectBox(fieldLabel)
+          : getLabelBox(fieldLabel);
+      }
+      return fieldBox;
     }
 
     function setLabelPosition(label, box, x, y) {
@@ -588,7 +904,7 @@ class LabelAdjuster {
           .attr("x", parseFloat(label.attr("x") || 0) + dx)
           .attr("y", parseFloat(label.attr("y") || 0) + dy);
       } else {
-        label.attr("transform", `translate(${x},${y})`);
+        setTranslate(label, x, y);
       }
     }
 
@@ -694,46 +1010,177 @@ class LabelAdjuster {
       return { x: labelBox.originalX, y: labelBox.originalY };
     }
 
+    // === Item pass: one label + its value = one block ===
+
     /**
-     * Adjust sector label position if overlapping with parent field label
-     * @param {Object} sectorLabel - D3 selection of sector label
+     * How far a block in this cell may travel.
+     * `maxItemMove: 'auto'` scales the budget with the cell: a 20px shift is a
+     * lot inside a tiny cell and nothing inside a big one. A number is a hard cap.
+     * @param {Object|null} bounds - cell bounds
+     * @returns {number} budget in pixels
      */
-    function adjustSectorLabel(sectorLabel) {
-      const data = sectorLabel.datum();
-      if (!data || !data.parent) return;
+    function itemMoveBudget(bounds) {
+      if (Number.isFinite(maxItemMove)) return maxItemMove;
+      if (!bounds) return 24;
+      const span = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+      return Math.min(120, Math.max(16, span * 0.45));
+    }
 
-      const parentFieldElement = d3
-        .select(treemap)
-        .selectAll(".vb-subgroup-label")
-        .filter((d) => d?.data?.key === data.parent?.data?.key)
-        .nodes()[0];
+    /**
+     * Offsets an item block may be tried at, nearest first.
+     * The anchor comes first so an untroubled block never moves, and the ring
+     * order is fixed so repeated runs pick the same winner.
+     * @param {number} budget - maximum displacement
+     * @returns {Object[]} [{ dx, dy }, ...]
+     */
+    function blockMoveCandidates(budget) {
+      const candidates = [{ dx: 0, dy: 0 }];
+      const step = Math.max(3, budget / 12);
+      for (let radius = step; radius <= budget + 1e-9; radius += step) {
+        for (let i = 0; i < 8; i += 1) {
+          const angle = (Math.PI / 4) * i;
+          candidates.push({
+            dx: Math.cos(angle) * radius,
+            dy: Math.sin(angle) * radius
+          });
+        }
+      }
+      return candidates;
+    }
 
-      if (!parentFieldElement) return;
+    /**
+     * Pick the displacement for one block: keep the anchor when it is already
+     * clear, otherwise take the cheapest move that clears the neighbours and
+     * keeps the whole block inside its own cell. When nothing is clean (tiny
+     * cells), the least-bad candidate wins — the block still lands somewhere
+     * sensible instead of being dropped.
+     * @returns {Object} { dx, dy }
+     */
+    function findBlockMove(block, polygon, obstacles, budget) {
+      if (totalOverlap(block, obstacles) === 0) return { dx: 0, dy: 0 };
 
-      const fieldLabel = d3.select(parentFieldElement);
-      const sectorBox = getLabelBox(sectorLabel);
-      const fieldBox = getLabelBox(fieldLabel);
-      const cellBounds = getCellBounds(data);
+      let best = { dx: 0, dy: 0 };
+      let bestScore = Infinity;
+      blockMoveCandidates(budget).forEach(({ dx, dy }) => {
+        const moved = shiftBox(block, dx, dy);
+        const outside =
+          polygon && boxFitsPolygon(moved, polygon) ? 0 : OUTSIDE_CELL_PENALTY;
+        const score =
+          totalOverlap(moved, obstacles) + outside + Math.hypot(dx, dy) * 0.5;
+        if (score < bestScore - 1e-9) {
+          bestScore = score;
+          best = { dx, dy };
+        }
+      });
+      return best;
+    }
 
-      if (
-        !cellBounds ||
-        !sectorBox ||
-        !fieldBox ||
-        sectorBox.width === 0 ||
-        sectorBox.height === 0 ||
-        fieldBox.width === 0 ||
-        fieldBox.height === 0
-      ) {
-        return;
+    /**
+     * Place one item label together with its value and return the block box it
+     * now occupies (so later blocks treat it as an obstacle).
+     * @returns {Object|null} placed block box, or null when nothing is visible
+     */
+    function placeItemBlock(entry, obstacles) {
+      const { label, value, data } = entry;
+      const labelVisible = isVisible(label);
+      const valueVisible = value ? isVisible(value) : false;
+      if (!labelVisible && !valueVisible) return null;
+
+      const labelAnchor = anchorOf(label);
+      const labelRaw = rawBox(label);
+      const labelBox = labelRaw ? boxAt(labelRaw, labelAnchor.x, labelAnchor.y) : null;
+
+      // The value always sits directly under the label's last line, centred on
+      // it — measured, so it holds for any wrap depth and any font size.
+      let valuePos = null;
+      let valueBox = null;
+      if (value) {
+        const valueRaw = rawBox(value);
+        if (valueRaw) {
+          if (labelBox && labelVisible) {
+            const gap = Math.max(1.5, valueRaw.height * valueGapRatio);
+            valuePos = {
+              x: labelBox.x - (valueRaw.x + valueRaw.width / 2),
+              y: labelBox.y + labelBox.height / 2 + gap - valueRaw.y
+            };
+          } else {
+            const valueAnchor = anchorOf(value);
+            valuePos = { x: valueAnchor.x, y: valueAnchor.y };
+          }
+          valueBox = boxAt(valueRaw, valuePos.x, valuePos.y);
+        }
       }
 
-      if (checkOverlap(sectorBox, fieldBox)) {
-        const move = findPolygonMove(sectorBox, fieldBox, data.polygon);
-        const newPos = move
-          ? { x: sectorBox.originalX + move.dx, y: sectorBox.originalY + move.dy }
-          : findMinimumMove(sectorBox, fieldBox, cellBounds);
-        setLabelPosition(sectorLabel, sectorBox, newPos.x, newPos.y);
+      const block = unionBox(
+        labelVisible ? labelBox : null,
+        valueVisible ? valueBox : null
+      );
+      if (!block) return null;
+
+      const move = findBlockMove(
+        block,
+        data?.polygon,
+        obstacles,
+        itemMoveBudget(getCellBounds(data))
+      );
+
+      setTranslate(label, labelAnchor.x + move.dx, labelAnchor.y + move.dy);
+      if (value && valuePos) {
+        setTranslate(value, valuePos.x + move.dx, valuePos.y + move.dy);
+        // Offset from the label, for the zoom handler to keep the block glued.
+        value
+          .attr("data-block-dx", valuePos.x - labelAnchor.x)
+          .attr("data-block-dy", valuePos.y - labelAnchor.y);
       }
+
+      return shiftBox(block, move.dx, move.dy);
+    }
+
+    /**
+     * Place every depth-3 label+value block: biggest cell first, each one
+     * avoiding the group/subgroup labels and the blocks already placed.
+     * @param {Object} svg - D3 selection of the treemap SVG
+     */
+    function adjustItemBlocks(svg) {
+      const valueById = new Map();
+      svg.selectAll(".vb-item-value").each(function () {
+        valueById.set(this.getAttribute("data-id"), d3.select(this));
+      });
+
+      const obstacles = [];
+      svg
+        .selectAll(
+          ".vb-group-label, .vb-group-label-html, .vb-subgroup-label, .vb-subgroup-label-html"
+        )
+        .each(function () {
+          const selection = d3.select(this);
+          if (!isVisible(selection)) return;
+          const box = measureLabel(selection);
+          if (box) obstacles.push(box);
+        });
+
+      const entries = [];
+      svg.selectAll(".vb-item-label").each(function () {
+        const label = d3.select(this);
+        entries.push({
+          label,
+          value: valueById.get(this.getAttribute("data-id")) || null,
+          data: label.datum(),
+          weight: parseFloat(this.getAttribute("data-value")) || 0,
+          id: this.getAttribute("data-id") || ""
+        });
+      });
+
+      // Larger cells keep their spot and smaller ones yield. Sorting by value
+      // (not DOM order) also makes the outcome independent of render order.
+      entries.sort(
+        (a, b) => b.weight - a.weight || String(a.id).localeCompare(String(b.id))
+      );
+
+      entries.forEach((entry) => {
+        const placed = placeItemBlock(entry, obstacles);
+        if (placed) obstacles.push(placed);
+      });
     }
 
     /**
@@ -766,38 +1213,16 @@ class LabelAdjuster {
 
       const regionLabel = d3.select(parentRegionElement);
       const isFieldForeignObject = fieldLabel.node()?.tagName === "foreignObject";
-      let fieldBox = isFieldForeignObject
-        ? getForeignObjectBox(fieldLabel)
-        : getLabelBox(fieldLabel);
-
-      // Keep the full subgroup heading visible. First try repositioning it;
-      // when the cell is too narrow, reduce only the label font until the
-      // complete wrapped text rectangle fits. Text content is never truncated
-      // by this step.
-      if (fieldBox && data.polygon && !boxFitsPolygon(fieldBox, data.polygon)) {
-        let placement = findPolygonPlacement(fieldBox, data.polygon);
-        if (!placement && !isFieldForeignObject) {
-          const initialFontEm = parseFloat(fieldLabel.style("font-size"));
-          if (Number.isFinite(initialFontEm) && initialFontEm > 0) {
-            for (let scale = 0.92; scale >= 0.5 && !placement; scale -= 0.08) {
-              fieldLabel.style("font-size", `${initialFontEm * scale}em`);
-              fieldBox = getLabelBox(fieldLabel);
-              if (fieldBox) placement = findPolygonPlacement(fieldBox, data.polygon);
-            }
-          }
-        }
-        if (fieldBox && placement) {
-          setLabelPosition(
-            fieldLabel,
-            fieldBox,
-            fieldBox.originalX + placement.dx,
-            fieldBox.originalY + placement.dy
-          );
-          fieldBox = isFieldForeignObject
-            ? getForeignObjectBox(fieldLabel)
-            : getLabelBox(fieldLabel);
-        }
-      }
+      // Before worrying about the group label, make sure the heading is inside
+      // its own cell at all.
+      const fieldBox = fitFieldLabelToCell(
+        fieldLabel,
+        isFieldForeignObject
+          ? getForeignObjectBox(fieldLabel)
+          : getLabelBox(fieldLabel),
+        data.polygon,
+        isFieldForeignObject
+      );
       const isForeignObject = parentRegionElement.tagName === "foreignObject";
       const regionBox = isForeignObject
         ? getForeignObjectBox(regionLabel)
@@ -1425,24 +1850,17 @@ const VoronoiBubbleHelpers = {
    */
   phraseMultiline: function (text, getBoxInfo, charsPerLine, lineHeight = 1.1, maxLines = 2) {
     const inputText = text == null ? "" : String(text).trim();
-    const isLatinText = !/[^A-Za-z0-9\s\-.,!?:;@]/.test(inputText);
-    const lineLimit = charsPerLine ?? (isLatinText ? 22 : 13);
+    // `lineLimit` and everything measure() returns are **em**, so the x offset
+    // below (half the block width) centres latin and CJK alike.
+    const lineLimit = charsPerLine ?? this.PHRASE_MAX_LINE_EM;
     const forcedLineBreaks = inputText.split("\n");
     let allLines = [];
 
-    const measure = (value) => {
-      const chars = Array.from(String(value));
-      return chars.reduce((width, char) => {
-        if (/[A-Za-z0-9]/.test(char)) return width + 0.65;
-        if (/\s/.test(char)) return width + 0.45;
-        if (/[.,!?:;|]/.test(char)) return width + 0.3;
-        return width + 1;
-      }, 0);
-    };
+    const measure = (value) => this.textWidthEm(value);
 
-    const clampLine = (line) => {
+    /** Mark a line as cut short, trimming it until the ellipsis fits. */
+    const withEllipsis = (line) => {
       let out = String(line).trim();
-      if (measure(out) <= lineLimit) return out;
       while (out.length > 1 && measure(`${out}…`) > lineLimit) {
         out = out.slice(0, -1).trim();
       }
@@ -1483,7 +1901,9 @@ const VoronoiBubbleHelpers = {
     const overLimit = allLines.length > maxLines;
     allLines = allLines.slice(0, maxLines);
     if (overLimit && allLines.length) {
-      allLines[allLines.length - 1] = clampLine(allLines[allLines.length - 1]);
+      // Lines were dropped — always say so. Otherwise a sentence cut in half
+      // reads as a whole one ("Leaders ask whether results can be").
+      allLines[allLines.length - 1] = withEllipsis(allLines[allLines.length - 1]);
     }
 
     const lineWidths = allLines.map(measure);
@@ -1498,8 +1918,30 @@ const VoronoiBubbleHelpers = {
     return `<tspan x=${0}em y=${-allLines.length / 2}em>${html}</tspan>`;
   },
 
+  /**
+   * Rendered width of a string in **em**, without a layout engine.
+   * A CJK glyph is one em, a latin letter about half, a space a quarter — the
+   * single unit every wrap budget and centring offset in this file speaks.
+   * @param {string} value
+   * @returns {number} width in em
+   */
+  textWidthEm: function (value) {
+    return Array.from(String(value == null ? "" : value)).reduce(
+      (width, char) => {
+        if (/[A-Za-z0-9]/.test(char)) return width + 0.5;
+        if (/\s/.test(char)) return width + 0.25;
+        if (/[.,!?:;|]/.test(char)) return width + 0.28;
+        return width + 1;
+      },
+      0
+    );
+  },
+
   /** Upper bound for 'auto' subgroup line fitting. */
   SUBGROUP_MAX_LINES_CAP: 6,
+  /** Narrowest / widest a wrapped depth-2 label line may be, in em. */
+  PHRASE_MIN_LINE_EM: 5,
+  PHRASE_MAX_LINE_EM: 13,
 
   /**
    * How many lines a depth-2 label may use inside its own cell.
@@ -1540,14 +1982,17 @@ const VoronoiBubbleHelpers = {
     const bounds = this.getPolygonBounds(d.polygon);
     const cellW = bounds.maxX - bounds.minX;
     const fontPx = fontEm * baseFontPx;
-    const isLatin = !/[^\x00-\x7F]/.test(text);
-    const charPx = isLatin ? fontPx * 0.55 : fontPx;
     const effectiveW = cellW * 0.58;
-    const rawChars = Math.floor(effectiveW / charPx);
-    const minChars = isLatin ? 8 : 5;
-    const maxChars = isLatin ? 22 : 13;
-    const charsPerLine = Math.max(minChars, Math.min(maxChars, rawChars));
-    return this.phraseMultiline(text, getBoxInfo, charsPerLine, 1.1, lineCap);
+    // The budget is a line WIDTH in em, not a character count — phraseMultiline
+    // measures latin and CJK in the same em units, so one budget serves both.
+    // (A CJK character is 1em, a latin letter about 0.5em, so the same 13em
+    // line holds ~13 Korean or ~26 latin characters.)
+    const lineEm = Math.floor(effectiveW / fontPx);
+    const budget = Math.max(
+      this.PHRASE_MIN_LINE_EM,
+      Math.min(this.PHRASE_MAX_LINE_EM, lineEm)
+    );
+    return this.phraseMultiline(text, getBoxInfo, budget, 1.1, lineCap);
   },
 
   /**
@@ -1555,9 +2000,20 @@ const VoronoiBubbleHelpers = {
    * cell-aware wrapping as the renderer so layout maths stays in sync.
    * @returns {number[]} [maxWidth, lineCount]
    */
+  /**
+   * Font size (em) a depth-2 label is drawn at.
+   * @param {Object} self - VoronoiBubble instance
+   * @param {Object} d - depth-2 node
+   * @returns {number} font size in em
+   */
+  subgroupFontEm: function (self, d) {
+    return (
+      this.fontScale(self.hierarchy, d) * (self.params?.subgroupLabelScale ?? 1.05)
+    );
+  },
+
   subgroupBoxInfo: function (self, d) {
-    const fontEm =
-      this.fontScale(self.hierarchy, d) * (self.params?.subgroupLabelScale ?? 1.05);
+    const fontEm = this.subgroupFontEm(self, d);
     return this.phraseByCell(
       d.data.key,
       self.hierarchy,
@@ -1567,6 +2023,152 @@ const VoronoiBubbleHelpers = {
       self.params?.subgroupLabelMaxLines ?? "auto",
       true
     );
+  },
+
+  // === Item label + value block geometry ===
+  //
+  // A depth-3 cell shows two texts: the item label (`text.vb-item-label`,
+  // wrapped over N lines) and its value (`text.vb-item-value`). They are two
+  // SVG elements in two layers, but they must read as ONE block: the value
+  // always sits directly under the *last* wrapped line, centred on the label.
+  // Everything below derives the value offset from the very same wrapping the
+  // renderer uses, so the two never drift apart when a label rewraps.
+
+  /** Line height (em) used when rendering depth-3 labels. */
+  ITEM_LINE_HEIGHT: 1.4,
+  // Share of its cell an item label may fill when growing to fit. Kept modest:
+  // a leaf cell also carries its value line and sits under a subgroup heading,
+  // so filling the cell edge to edge turns a dense chart into noise. These
+  // bounds only bind in crowded charts — in a roomy cell the subgroup-ratio
+  // ceiling below takes over first.
+  ITEM_FIT_WIDTH: 0.45,
+  ITEM_FIT_HEIGHT: 0.35,
+  /** Lines an item label may use while growing. */
+  ITEM_FIT_MAX_LINES: 2,
+  /** An item label never reaches its subgroup heading's size. */
+  ITEM_TO_SUBGROUP_RATIO: 0.75,
+  /** Value font size relative to its item label font size. */
+  ITEM_VALUE_FONT_RATIO: 0.8,
+  /** Typographic constants (em) used to turn baselines into a visual box. */
+  ITEM_DESCENDER: 0.22,
+  ITEM_ASCENT: 0.78,
+  /** Gap between label and value, as a fraction of the value's font size. */
+  ITEM_VALUE_GAP_RATIO: 0.2,
+
+  /**
+   * Wrapping actually used for a depth-3 label.
+   * Single source of truth for `_drawSectorLabels()` and the value placement.
+   * @param {Object} self - VoronoiBubble instance
+   * @param {Object} d - depth-3 node
+   * @returns {Object} { text, charsPerLine, fontEm, lines, maxLength, isLatin }
+   */
+  /**
+   * Font size (em) a depth-3 label is drawn at.
+   *
+   * `fontScale2()` alone sizes a label by its share of the total value, which
+   * leaves a short keyword looking tiny in a roomy cell (9% of the cell width
+   * is not a design, it is an accident). So the label also grows to fit its own
+   * cell — bounded by the value-based size from below and by its subgroup
+   * heading from above, which keeps the hierarchy readable. A long sentence
+   * runs out of cell width first and stays where it was.
+   * @param {Object} self - VoronoiBubble instance
+   * @param {Object} d - depth-3 node
+   * @param {number} [baseFontPx=16]
+   * @returns {number} font size in em
+   */
+  itemLabelFontEm: function (self, d, baseFontPx = 16) {
+    const base = this.fontScale2(self.hierarchy, d);
+    if (self.params?.itemLabelFit === false) return base;
+
+    const text = d?.data?.key == null ? "" : String(d.data.key);
+    const emWidth = this.textWidthEm(text);
+    if (!text || !d?.polygon || !(emWidth > 0)) return base;
+
+    const bounds = this.getPolygonBounds(d.polygon);
+    const cellW = bounds.maxX - bounds.minX;
+    const cellH = bounds.maxY - bounds.minY;
+
+    let fitPx = 0;
+    for (let lines = 1; lines <= this.ITEM_FIT_MAX_LINES; lines += 1) {
+      const byWidth = (cellW * this.ITEM_FIT_WIDTH) / (emWidth / lines);
+      const byHeight =
+        (cellH * this.ITEM_FIT_HEIGHT) / (lines * this.ITEM_LINE_HEIGHT);
+      fitPx = Math.max(fitPx, Math.min(byWidth, byHeight));
+    }
+
+    // Cell geometry already carries the canvas size, but not the user's own
+    // `fontScale`, so apply that here too — otherwise the option would stop
+    // working for any label the fit is driving.
+    const fitEm = (fitPx / baseFontPx) * (self.params?.fontScale ?? 1);
+    const ceiling = d.parent
+      ? this.subgroupFontEm(self, d.parent) * this.ITEM_TO_SUBGROUP_RATIO
+      : Infinity;
+    return Math.min(Math.max(base, fitEm), Math.max(base, ceiling));
+  },
+
+  itemLabelLayout: function (self, d) {
+    const fontEm = this.itemLabelFontEm(self, d);
+    const { text, charsPerLine } = this.truncateByCell(
+      d.data.key,
+      self.hierarchy,
+      d,
+      16,
+      2,
+      fontEm
+    );
+    const [rawWidth, rawLines] = this.multiline(
+      text,
+      true,
+      charsPerLine,
+      this.ITEM_LINE_HEIGHT
+    );
+    return {
+      text,
+      charsPerLine,
+      fontEm,
+      lines: rawLines || 0,
+      maxLength: Number.isFinite(rawWidth) ? rawWidth : 0,
+      // Same predicate multiline() uses, so `maxLength` and the width estimate
+      // built from it below always speak the same units.
+      isLatin: !/[^A-Za-z0-9\s\-.,!?:;@]/.test(text == null ? "" : String(text))
+    };
+  },
+
+  /**
+   * Offset of the value label from its item label's anchor, in user units.
+   *
+   * `multiline()` emits `<tspan y=-lines/2em>` and then one `dy=LHem` per line,
+   * so line i sits on baseline `(-lines/2 + LH*i)em` and the last line's
+   * baseline is `(LH*lines - lines/2)em` below the anchor. The value baseline
+   * is placed one descender + gap + one ascent below that.
+   *
+   * @param {Object} layout - result of {@link itemLabelLayout}
+   * @param {number} [baseFontPx=16] - px per em
+   * @returns {Object} { dx, dy } offset from the item label anchor
+   */
+  itemValueOffsetFromLayout: function (layout, baseFontPx = 16) {
+    const labelPx = layout.fontEm * baseFontPx;
+    const valuePx = labelPx * this.ITEM_VALUE_FONT_RATIO;
+    if (!layout.lines) {
+      // No label text — the value is the whole block, centred on the anchor.
+      return { dx: 0, dy: valuePx * 0.35 };
+    }
+    const lastBaseline =
+      (this.ITEM_LINE_HEIGHT * layout.lines - layout.lines / 2) * labelPx;
+    const gap = Math.max(1.5, valuePx * this.ITEM_VALUE_GAP_RATIO);
+    // Label lines are anchored at `x=-maxLength/3em` with text-anchor:start;
+    // the value uses text-anchor:middle, so shift it to the block's centre.
+    // multiline() measures latin lines in weighted char units (~0.5em each)
+    // and CJK lines in characters (~1em each).
+    const lineWidthEm = layout.maxLength * (layout.isLatin ? 0.5 : 1);
+    return {
+      dx: (lineWidthEm / 2 - layout.maxLength / 3) * labelPx,
+      dy:
+        lastBaseline +
+        this.ITEM_DESCENDER * labelPx +
+        gap +
+        this.ITEM_ASCENT * valuePx
+    };
   },
 
   /**
@@ -1752,7 +2354,7 @@ const VoronoiBubbleHelpers = {
    * @param {number} n - Number to format
    * @returns {string} Formatted string with Korean number units
    */
-  truncateByCell: function (text, hierarchy, d, baseFontPx = 16, maxLines = 2) {
+  truncateByCell: function (text, hierarchy, d, baseFontPx = 16, maxLines = 2, fontEmOverride) {
     if (!text) return { text, charsPerLine: 7 };
     const polygon = d.polygon;
     if (!polygon) return { text, charsPerLine: 7 };
@@ -1760,7 +2362,9 @@ const VoronoiBubbleHelpers = {
     const ys = polygon.map((p) => p[1]);
     const cellW = Math.max(...xs) - Math.min(...xs);
     const cellH = Math.max(...ys) - Math.min(...ys);
-    const fontEm = this.fontScale2(hierarchy, d);
+    // The caller may already have grown the label to fit its cell; wrap at the
+    // size it will actually render at.
+    const fontEm = fontEmOverride ?? this.fontScale2(hierarchy, d);
     const fontPx = fontEm * baseFontPx;
     const isLatin = !/[^\x00-\x7F]/.test(text);
     // CJK chars are ~1em wide; latin ~0.55em; voronoi bbox is irregular so use 60%
@@ -2564,6 +3168,8 @@ class VoronoiBubble {
       groupLabelScale: 1.1, // depth-1 (group) label multiplier
       subgroupLabelScale: 1.05, // depth-2 (subgroup) label multiplier
       subgroupLabelMaxLines: 'auto', // depth-2 label line cap — 'auto' fits the cell (2~6 lines), or a fixed number
+      itemLabelFit: true, // depth-3 labels grow to fill a roomy cell (short keywords stop looking tiny);
+                          // never past 0.75x its subgroup label, never below the value-based size. false = fixed size only
 
       colors: VoronoiBubble.DEFAULT_COLORS,
       colorVariation: "standard", // 'standard'(그룹 내 명도 대비, v1 룩) | 'subtle'(차분·전역 일관) | 'strong'(강한 대비)
@@ -3541,8 +4147,41 @@ class VoronoiBubble {
     }
   }
 
+  /**
+   * Geometry of one depth-3 "label + value" block, computed once per node.
+   *
+   * `anchor` is the translate origin of the item label; the value hangs off the
+   * same anchor by `offset`, so the two texts move together as one block.
+   * @param {Object} d - depth-3 node
+   * @returns {Object} { anchor: [x, y], layout, offset: { dx, dy } }
+   */
+  _itemBlock(d) {
+    if (d._vbBlock) return d._vbBlock;
+    let anchor = [0, 0];
+    if (d.polygon?.site) {
+      anchor = this.params.underLabel
+        ? [
+            d.polygon.site.x,
+            d.polygon.site.y +
+              VoronoiBubbleHelpers.fontScale1(
+                this.hierarchy,
+                d.data.data.subgroup,
+                d.parent.value
+              ) *
+                8 *
+                (VoronoiBubbleHelpers.multiline(d.data.data.subgroup, true)[1] +
+                  0.5)
+          ]
+        : VoronoiBubbleHelpers.getLabelPos(this, d);
+    }
+    const layout = VoronoiBubbleHelpers.itemLabelLayout(this, d);
+    const offset = VoronoiBubbleHelpers.itemValueOffsetFromLayout(layout);
+    d._vbBlock = { anchor, layout, offset };
+    return d._vbBlock;
+  }
+
   _drawSectorLabels() {
-    const { underLabel, ratioLimit } = this.params;
+    const { ratioLimit } = this.params;
 
     this.labelsGroup
       .selectAll("text")
@@ -3553,7 +4192,7 @@ class VoronoiBubble {
       .attr("data-id", (d) => d.id)
       .attr("data-item", (d) => d.data.key)
       .attr("data-full-text", (d) => d.data.key)
-      .attr("data-font-em", (d) => VoronoiBubbleHelpers.fontScale2(this.hierarchy, d))
+      .attr("data-font-em", (d) => this._itemBlock(d).layout.fontEm)
       .attr("data-cell-w", (d) => {
         const xs = d.polygon.map(p => p[0]);
         return Math.max(...xs) - Math.min(...xs);
@@ -3565,36 +4204,22 @@ class VoronoiBubble {
       .attr("data-value", (d) => d.value)
       .attr("data-ratio", (d) => d.value / this.totalValue)
       .attr("text-anchor", "start")
-      .style(
-        "font-size",
-        (d) => VoronoiBubbleHelpers.fontScale2(this.hierarchy, d) + "em"
-      )
+      .style("font-size", (d) => this._itemBlock(d).layout.fontEm + "em")
       .style("fill", (d) =>
         VoronoiBubbleHelpers.getHSLColor(d.color, 0, -0.1, -0.3)
       )
-      .attr("transform", (d) => {
-        if (!d.polygon?.site) return `translate(0,0)`;
-        return underLabel
-          ? `translate(${[
-              d.polygon.site.x,
-              d.polygon.site.y +
-                VoronoiBubbleHelpers.fontScale1(
-                  this.hierarchy,
-                  d.data.data.subgroup,
-                  d.parent.value
-                ) *
-                  8 *
-                  (VoronoiBubbleHelpers.multiline(
-                    d.data.data.subgroup,
-                    true
-                  )[1] +
-                    0.5)
-            ]})`
-          : `translate(${VoronoiBubbleHelpers.getLabelPos(this, d)})`;
-      })
+      .attr("data-anchor-x", (d) => this._itemBlock(d).anchor[0])
+      .attr("data-anchor-y", (d) => this._itemBlock(d).anchor[1])
+      .attr("data-lines", (d) => this._itemBlock(d).layout.lines)
+      .attr("transform", (d) => `translate(${this._itemBlock(d).anchor})`)
       .html((d) => {
-        const { text, charsPerLine } = VoronoiBubbleHelpers.truncateByCell(d.data.key, this.hierarchy, d);
-        return VoronoiBubbleHelpers.multiline(text, false, charsPerLine, 1.4);
+        const { text, charsPerLine } = this._itemBlock(d).layout;
+        return VoronoiBubbleHelpers.multiline(
+          text,
+          false,
+          charsPerLine,
+          VoronoiBubbleHelpers.ITEM_LINE_HEIGHT
+        );
       })
       .attr("opacity", (d) => (d.value / this.totalValue > ratioLimit ? 1 : 0));
   }
@@ -3612,22 +4237,26 @@ class VoronoiBubble {
       .attr("text-anchor", "middle")
       .style(
         "font-size",
-        (d) => VoronoiBubbleHelpers.fontScale2(this.hierarchy, d) * 0.8 + "em"
+        (d) =>
+          this._itemBlock(d).layout.fontEm *
+            VoronoiBubbleHelpers.ITEM_VALUE_FONT_RATIO + "em"
       )
       .attr(
         "data-item",
         (d) => d.data.data.item ?? d.data.data.subgroup
       )
-      .attr(
-        "transform",
-        (d) => {
-          if (!d.polygon?.site) return `translate(0,0)`;
-          return `translate(${[
-            d.polygon.site.x,
-            d.polygon.site.y + VoronoiBubbleHelpers.varFontScale(this, d)
-          ]})`;
-        }
-      )
+      // The value hangs off the item label's anchor, one line below the label's
+      // *last* wrapped line, so the pair reads as a single block no matter how
+      // the label wrapped. `data-block-dx/dy` records that offset so the zoom
+      // handler and LabelAdjuster can keep the block together.
+      .attr("data-block-dx", (d) => this._itemBlock(d).offset.dx)
+      .attr("data-block-dy", (d) => this._itemBlock(d).offset.dy)
+      .attr("data-anchor-x", (d) => this._itemBlock(d).anchor[0] + this._itemBlock(d).offset.dx)
+      .attr("data-anchor-y", (d) => this._itemBlock(d).anchor[1] + this._itemBlock(d).offset.dy)
+      .attr("transform", (d) => {
+        const { anchor, offset } = this._itemBlock(d);
+        return `translate(${anchor[0] + offset.dx},${anchor[1] + offset.dy})`;
+      })
       .text((d) => VoronoiBubbleHelpers.bigFormat(d.data.values[0].size))
       .attr("opacity", (d) => (d.value > sizeLimit ? 1 : 0));
   }
@@ -3637,9 +4266,13 @@ class VoronoiBubble {
   _applyPostEffects() {
     const { showGroupLabel, pebbleRound, pebbleWidth } = this.params;
 
-    if (showGroupLabel) {
-      this.labelAdjuster.adjust(this.svg.node(), { verticalSpacing: 0 });
-    }
+    // The item pass (keeping each label+value block inside its own cell and
+    // clear of its neighbours) is always useful; the group/subgroup pass only
+    // matters when group labels are actually drawn.
+    this.labelAdjuster.adjust(this.svg.node(), {
+      verticalSpacing: 0,
+      adjustGroupLabels: !!showGroupLabel
+    });
 
     this.pebbleRenderer.render(
       this.svg.node(),
@@ -3742,9 +4375,42 @@ class VoronoiBubble {
             const linesFit = Math.max(1, Math.floor(cellH / (fontPx * 1.4 * textScale)));
             const limit = Math.max(5, Math.min(fullText.length, charsPerLine * linesFit));
             const truncated = fullText.length <= limit ? fullText : fullText.slice(0, limit) + '…';
-            el.html(VoronoiBubbleHelpers.multiline(truncated, false, charsPerLine, 1.4));
+            el.html(VoronoiBubbleHelpers.multiline(
+              truncated, false, charsPerLine, VoronoiBubbleHelpers.ITEM_LINE_HEIGHT,
+            ));
+            // Rewrapping changed the line count — recompute where the value sits.
+            const [w, lines] = VoronoiBubbleHelpers.multiline(
+              truncated, true, charsPerLine, VoronoiBubbleHelpers.ITEM_LINE_HEIGHT,
+            );
+            el.attr('data-lines', lines || 0);
+            const offset = VoronoiBubbleHelpers.itemValueOffsetFromLayout({
+              fontEm,
+              lines: lines || 0,
+              maxLength: Number.isFinite(w) ? w : 0,
+              isLatin,
+            });
+            svg.select(`text.vb-item-value[data-id="${el.attr('data-id')}"]`)
+              .attr('data-block-dx', offset.dx)
+              .attr('data-block-dy', offset.dy);
           });
         }
+
+        // Keep every value glued under its item label: the pair is one block,
+        // so the value rides the label's origin and scales with it.
+        const itemOrigin = new Map();
+        svg.selectAll('text.vb-item-label').each(function () {
+          const el = d3.select(this);
+          const m = /translate\(([^,]+),([^)]+)\)/.exec(el.attr('data-orig-transform') || '');
+          if (m) itemOrigin.set(el.attr('data-id'), [parseFloat(m[1]), parseFloat(m[2])]);
+        });
+        svg.selectAll('text.vb-item-value').each(function () {
+          const el = d3.select(this);
+          const origin = itemOrigin.get(el.attr('data-id'));
+          if (!origin) return;
+          const dx = parseFloat(el.attr('data-block-dx') || 0) * textScale;
+          const dy = parseFloat(el.attr('data-block-dy') || 0) * textScale;
+          el.attr('transform', `translate(${origin[0] + dx},${origin[1] + dy}) scale(${textScale})`);
+        });
       });
 
     svg.call(zoom);

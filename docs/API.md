@@ -18,7 +18,7 @@ v2.0 기준 전체 API 레퍼런스입니다. v1에서 올라오는 경우 [MIGR
 ## 로드하기
 
 ```
-https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.2.0/dist/voronoi-bubble.standalone.js
+https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.3.0/dist/voronoi-bubble.standalone.js
 ```
 
 
@@ -26,14 +26,14 @@ https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.2.0/dist/voronoi-b
 
 ```javascript
 import { VoronoiBubble, showVoronoiPopup }
-  from 'https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.2.0/dist/voronoi-bubble.standalone.js';
+  from 'https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.3.0/dist/voronoi-bubble.standalone.js';
 ```
 
 Observable에서는 동적 import를 씁니다.
 
 ```javascript
 {
-  const m = await import("https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.2.0/dist/voronoi-bubble.standalone.js");
+  const m = await import("https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.3.0/dist/voronoi-bubble.standalone.js");
   VoronoiBubble = m.VoronoiBubble;
   showVoronoiPopup = m.showVoronoiPopup;
   return m;
@@ -43,7 +43,7 @@ Observable에서는 동적 import를 씁니다.
 ### `<script>` 태그 (UMD, `file://`에서도 동작)
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.2.0/dist/voronoi-bubble.standalone.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.3.0/dist/voronoi-bubble.standalone.umd.js"></script>
 <script>
   const { VoronoiBubble, showVoronoiPopup } = VoronoiBubbleModule;
 </script>
@@ -194,6 +194,7 @@ document.getElementById('chart').appendChild(svg);
 | `groupLabelScale` | `number` | `1.1` | depth-1(group) 라벨 폰트 배율. 커스텀 렌더러의 `ctx.fontSize`에도 반영됩니다 |
 | `subgroupLabelScale` | `number` | `1.05` | depth-2(subgroup) 라벨 폰트 배율. 그룹-서브그룹 크기 위계를 조절합니다 |
 | `subgroupLabelMaxLines` | `'auto'\|number` | `'auto'` | depth-2 라벨의 최대 줄 수. `'auto'`는 셀 높이에 맞춰 2~6줄까지 늘려 라벨을 가능한 한 온전히 보여줍니다. 숫자를 주면 그 값으로 고정됩니다(예: `2`) |
+| `itemLabelFit` | `boolean` | `true` | depth-3 라벨이 자기 셀에 맞춰 커집니다. 값 비중만으로 크기를 정하면 넓은 셀의 짧은 키워드가 지나치게 작아 보이기 때문입니다. 위로는 **자기 subgroup 라벨의 0.75배**, 아래로는 값 기준 크기가 한계라 위계는 유지됩니다(긴 문장은 셀 폭에 먼저 걸려 거의 커지지 않습니다). `false`면 값 비중만으로 크기를 정하는 예전 방식 |
 | `sizeLimit` | `number` | `1000` | depth-3 값 라벨(`.vb-item-value`)을 이 값보다 큰 셀에만 표시 |
 | `renderGroupLabel` | `function\|null` | `null` | depth-1 라벨을 HTML로 직접 렌더 |
 | `renderSubgroupLabel` | `function\|null` | `null` | depth-2 라벨을 HTML로 직접 렌더 |

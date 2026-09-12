@@ -21,7 +21,7 @@ Library: [pxd-uxtech/voronoi-bubble-dist](https://github.com/pxd-uxtech/voronoi-
 ```javascript
 VB = {
   const m = await import(
-    "https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.3.0/dist/voronoi-bubble.standalone.js"
+    "https://cdn.jsdelivr.net/gh/pxd-uxtech/voronoi-bubble-dist@v2.3.1/dist/voronoi-bubble.standalone.js"
   );
   return m;
 }

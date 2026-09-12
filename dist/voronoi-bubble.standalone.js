@@ -25695,13 +25695,10 @@ class PebbleRenderer {
         // Where cells meet, the voronoi leaves the shared corner as two points
         // a few pixels apart rather than one. That stub edge caps the fillet at
         // its own length, so the junction stays a hard right angle no matter
-        // what `round` says. Merge those stubs first — measured against this
-        // polygon's own edges, so the threshold follows the chart's scale
-        // instead of deleting real corner detail on a small one.
+        // what `round` says — collapse those stubs before smoothing.
         const smoothedPath = self.smoothPath(
-          originalPath,
-          round,
-          self._stubLength(polygon)
+          'M' + self._mergeStubs(polygon).map((p) => `${p[0]},${p[1]}`).join('L') + 'Z',
+          round
         );
 
         outlineGroup
@@ -25716,23 +25713,73 @@ class PebbleRenderer {
     });
   }
 
+  /** An edge this much shorter than both its neighbours is a junction stub. */
+  static get STUB_RATIO() {
+    return 0.15;
+  }
+
   /**
-   * Length below which an edge is a junction stub rather than a real side.
-   * Taken from this polygon's own edges so it scales with the chart.
+   * Collapse junction stubs — the tiny edges the voronoi leaves where cells
+   * meet, in place of a single shared corner.
+   *
+   * The test is against the stub's OWN two neighbouring edges, not against the
+   * polygon as a whole: a group cell may have only a handful of points, and
+   * then "short compared to the polygon" happily swallows a real side and
+   * reshapes the outline. A stub sits between two edges that dwarf it.
+   *
+   * The surviving point is the pair's midpoint, so the corner lands in the same
+   * place no matter which direction the polygon happens to be wound.
+   *
    * @param {number[][]} polygon - Array of [x, y] coordinate pairs
-   * @returns {number} threshold in user units
+   * @returns {number[][]} polygon with stubs collapsed
    * @private
    */
-  _stubLength(polygon) {
+  _mergeStubs(polygon) {
     const n = polygon.length;
-    if (n < 4) return 0;
-    const lengths = polygon
-      .map((p, i) => {
-        const q = polygon[(i + 1) % n];
-        return Math.hypot(q[0] - p[0], q[1] - p[1]);
-      })
-      .sort((a, b) => a - b);
-    return lengths[Math.floor(n / 2)] * 0.35;
+    if (n < 5) return polygon;
+
+    const edge = (i) => {
+      const a = polygon[i];
+      const b = polygon[(i + 1) % n];
+      return Math.hypot(b[0] - a[0], b[1] - a[1]);
+    };
+    const ratio = PebbleRenderer.STUB_RATIO;
+
+    const isStub = polygon.map((_, i) => {
+      const here = edge(i);
+      if (here === 0) return true;
+      const neighbours = Math.min(edge((i - 1 + n) % n), edge((i + 1) % n));
+      return here < neighbours * ratio;
+    });
+    // Two stubs in a row would chain into a bigger change than intended.
+    for (let i = 0; i < n; i += 1) {
+      if (isStub[i] && isStub[(i + 1) % n]) isStub[(i + 1) % n] = false;
+    }
+
+    const midpoint = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const merged = [];
+    let skipNext = false;
+    // The wrap-around edge is handled after the loop so the first point is not
+    // emitted twice.
+    for (let i = 0; i < n - 1; i += 1) {
+      if (skipNext) {
+        skipNext = false;
+        continue;
+      }
+      if (isStub[i]) {
+        merged.push(midpoint(polygon[i], polygon[i + 1]));
+        skipNext = true;
+      } else {
+        merged.push(polygon[i]);
+      }
+    }
+    if (!skipNext) merged.push(polygon[n - 1]);
+    if (isStub[n - 1] && merged.length > 3) {
+      merged[0] = midpoint(merged[merged.length - 1], merged[0]);
+      merged.pop();
+    }
+
+    return merged.length >= 3 ? merged : polygon;
   }
 
   /**

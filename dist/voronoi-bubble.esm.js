@@ -446,6 +446,23 @@ const MANAGED_LABELS = [
  */
 class LabelAdjuster {
   /**
+   * A group label never shrinks below this fraction of its rendered size —
+   * past that it stops out-ranking the headings underneath it and the
+   * hierarchy reads backwards.
+   */
+  static get GROUP_SHRINK_FLOOR() {
+    return 0.8;
+  }
+
+  /**
+   * A heading may give up more than the group label above it, because it is
+   * the lower rank: shrinking it is how the two stay legible together.
+   */
+  static get HEADING_SHRINK_FLOOR() {
+    return 0.6;
+  }
+
+  /**
    * Create a LabelAdjuster instance
    * @param {Object} [d3Instance] - Optional D3 instance (defaults to global d3)
    */
@@ -492,6 +509,23 @@ class LabelAdjuster {
       });
 
       if (adjustGroupLabels) {
+        // Headings first — a heading that has been fitted to its own cell is
+        // the obstacle the group label then has to work around.
+        svg.selectAll(".vb-subgroup-label, .vb-subgroup-label-html").each(function () {
+          const fieldLabel = d3.select(this);
+          const data = fieldLabel.datum();
+          if (!data?.polygon) return;
+          const isFO = this.tagName === "foreignObject";
+          fitFieldLabelToCell(
+            fieldLabel,
+            isFO ? getForeignObjectBox(fieldLabel) : getLabelBox(fieldLabel),
+            data.polygon,
+            isFO
+          );
+        });
+
+        placeGroupLabels(svg);
+
         svg.selectAll(".vb-subgroup-label, .vb-subgroup-label-html").each(function () {
           adjustFieldLabel(d3.select(this));
         });
@@ -1123,6 +1157,139 @@ class LabelAdjuster {
     }
 
     /**
+     * Where to put a group label inside its own region.
+     *
+     * Staying inside the region is a hard requirement — a group label that has
+     * wandered out of its own colour is simply wrong — so only positions that
+     * still fit the polygon are considered. Among those, the one that covers
+     * the least other text wins, with distance from the original spot as the
+     * tie-breaker so a label that is already clear does not drift.
+     * @returns {Object} { dx, dy }
+     */
+    function findGroupLabelMove(box, polygon, obstacles, budget) {
+      if (totalOverlap(box, obstacles) === 0) return { dx: 0, dy: 0 };
+
+      let best = { dx: 0, dy: 0 };
+      let bestScore = Infinity;
+      let found = false;
+      blockMoveCandidates(budget).forEach(({ dx, dy }) => {
+        const moved = shiftBox(box, dx, dy);
+        if (polygon && !boxFitsPolygon(moved, polygon)) return;
+        const score = totalOverlap(moved, obstacles) + Math.hypot(dx, dy) * 0.5;
+        if (score < bestScore - 1e-9) {
+          bestScore = score;
+          best = { dx, dy };
+          found = true;
+        }
+      });
+      // Nowhere inside the region holds the label — leave it where the
+      // renderer put it rather than pushing it out of its own colour.
+      return found ? best : { dx: 0, dy: 0 };
+    }
+
+    /**
+     * Give every group label a spot in its own region that does not sit on top
+     * of the headings. Runs once, after the headings are fitted, so each label
+     * sees the others' final positions.
+     * @param {Object} svg - D3 selection of the treemap SVG
+     */
+    function placeGroupLabels(svg) {
+      const obstacles = [];
+      // Biggest heading inside each region: a group label may shrink to make
+      // room, but never to the point where a heading under it looks larger.
+      const headingFont = new Map();
+      svg
+        .selectAll(".vb-subgroup-label, .vb-subgroup-label-html")
+        .each(function () {
+          const selection = d3.select(this);
+          if (!isVisible(selection)) return;
+          const box = measureLabel(selection);
+          if (box) obstacles.push(box);
+          const parentKey = selection.datum()?.parent?.data?.key;
+          const font = parseFloat(selection.style("font-size"));
+          if (parentKey != null && Number.isFinite(font)) {
+            const key = String(parentKey);
+            headingFont.set(key, Math.max(headingFont.get(key) || 0, font));
+          }
+        });
+
+      const entries = [];
+      svg.selectAll(".vb-group-label, .vb-group-label-html").each(function () {
+        const selection = d3.select(this);
+        if (!isVisible(selection)) return;
+        const data = selection.datum();
+        const box = measureLabel(selection);
+        if (!box || !data?.polygon) return;
+        entries.push({
+          selection,
+          box,
+          data,
+          weight: data.value || 0,
+          key: String(data.data?.key ?? "")
+        });
+      });
+
+      // Biggest region first, so the label with the most room to give way is
+      // the one that yields. Sorting also makes the pass order-independent.
+      entries.sort((a, b) => b.weight - a.weight || a.key.localeCompare(b.key));
+
+      entries.forEach((entry) => {
+        const polygon = entry.data.polygon;
+        const budget = itemMoveBudget(getCellBounds(entry.data));
+        const attempt = (box) => {
+          const move = findGroupLabelMove(box, polygon, obstacles, budget);
+          return {
+            box,
+            move,
+            covered: totalOverlap(shiftBox(box, move.dx, move.dy), obstacles)
+          };
+        };
+
+        let best = attempt(entry.box);
+        let bestScale = 1;
+
+        // Relocating is not always enough: a long group name typesets into a
+        // block bigger than any gap between the headings. Give it the same way
+        // out the headings have — shrink a little and look again — and keep the
+        // largest size that actually buys a clearer label.
+        const isSvgText = entry.selection.node()?.tagName !== "foreignObject";
+        if (best.covered > 0 && isSvgText) {
+          const baseFont = baseFontSize(entry.selection);
+          if (Number.isFinite(baseFont) && baseFont > 0) {
+            const heading = headingFont.get(entry.key) || 0;
+            const floor = Math.max(
+              LabelAdjuster.GROUP_SHRINK_FLOOR,
+              heading ? heading / baseFont : 0
+            );
+            for (let scale = 0.92; scale >= floor; scale -= 0.08) {
+              entry.selection.style("font-size", `${baseFont * scale}em`);
+              const shrunk = measureLabel(entry.selection);
+              if (!shrunk) continue;
+              const candidate = attempt(shrunk);
+              if (candidate.covered < best.covered - 1e-9) {
+                best = candidate;
+                bestScale = scale;
+              }
+              if (candidate.covered === 0) break;
+            }
+            entry.selection.style("font-size", `${baseFont * bestScale}em`);
+            if (bestScale !== 1) best = attempt(measureLabel(entry.selection) || best.box);
+          }
+        }
+
+        if (best.move.dx || best.move.dy) {
+          setLabelPosition(
+            entry.selection,
+            best.box,
+            best.box.originalX + best.move.dx,
+            best.box.originalY + best.move.dy
+          );
+        }
+        obstacles.push(shiftBox(best.box, best.move.dx, best.move.dy));
+      });
+    }
+
+    /**
      * Place one item label together with its value and return the block box it
      * now occupies (so later blocks treat it as an obstacle).
      * @returns {Object|null} placed block box, or null when nothing is visible
@@ -1333,11 +1500,46 @@ class LabelAdjuster {
             fieldBox.originalX + best.fieldMove.dx,
             fieldBox.originalY + best.fieldMove.dy
           );
-        } else {
+        } else if (!shrinkFieldLabelClear(fieldLabel, fieldBox, regionBox, data.polygon, isFieldForeignObject)) {
           const newPos = findMinimumMove(fieldBox, regionBox, cellBounds);
           setLabelPosition(fieldLabel, fieldBox, newPos.x, newPos.y);
         }
       }
+    }
+
+    /**
+     * Last resort for a heading still sitting under its group label: make the
+     * heading smaller until it finds room inside its own cell that the group
+     * label does not cover. The heading yields rather than the group label,
+     * which has already given all it can without inverting the hierarchy.
+     * @returns {boolean} true when the heading was placed clear
+     */
+    function shrinkFieldLabelClear(fieldLabel, box, regionBox, polygon, isForeignObject) {
+      if (isForeignObject || !polygon) return false;
+      const baseFont = baseFontSize(fieldLabel);
+      if (!Number.isFinite(baseFont) || baseFont <= 0) return false;
+
+      for (
+        let scale = 0.92;
+        scale >= LabelAdjuster.HEADING_SHRINK_FLOOR;
+        scale -= 0.08
+      ) {
+        fieldLabel.style("font-size", `${baseFont * scale}em`);
+        const shrunk = getLabelBox(fieldLabel);
+        if (!shrunk) continue;
+        const move = findPolygonMove(shrunk, regionBox, polygon);
+        if (!move) continue;
+        setLabelPosition(
+          fieldLabel,
+          shrunk,
+          shrunk.originalX + move.dx,
+          shrunk.originalY + move.dy
+        );
+        return true;
+      }
+
+      fieldLabel.style("font-size", `${baseFont}em`);
+      return false;
     }
   }
 }

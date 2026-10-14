@@ -180,7 +180,7 @@ class PebbleRenderer {
         // its own length, so the junction stays a hard right angle no matter
         // what `round` says — collapse those stubs before smoothing.
         const smoothedPath = self.smoothPath(
-          'M' + self._mergeStubs(polygon).map((p) => `${p[0]},${p[1]}`).join('L') + 'Z',
+          'M' + self._mergeStubs(polygon, width).map((p) => `${p[0]},${p[1]}`).join('L') + 'Z',
           round
         );
 
@@ -210,14 +210,19 @@ class PebbleRenderer {
    * then "short compared to the polygon" happily swallows a real side and
    * reshapes the outline. A stub sits between two edges that dwarf it.
    *
+   * Each endpoint may move by at most the outline width. This keeps tiny
+   * junction stubs mergeable without swallowing real shared boundaries when
+   * their neighbouring edges happen to be long.
+   *
    * The surviving point is the pair's midpoint, so the corner lands in the same
    * place no matter which direction the polygon happens to be wound.
    *
    * @param {number[][]} polygon - Array of [x, y] coordinate pairs
+   * @param {number} [maxDisplacement=5] - Maximum endpoint movement in SVG units
    * @returns {number[][]} polygon with stubs collapsed
    * @private
    */
-  _mergeStubs(polygon) {
+  _mergeStubs(polygon, maxDisplacement = 5) {
     const n = polygon.length;
     if (n < 5) return polygon;
 
@@ -232,7 +237,11 @@ class PebbleRenderer {
       const here = edge(i);
       if (here === 0) return true;
       const neighbours = Math.min(edge((i - 1 + n) % n), edge((i + 1) % n));
-      return here < neighbours * ratio;
+      // Length alone cannot distinguish a numerical junction stub from a
+      // real shared side between long edges. Limit the movement of either
+      // endpoint to the outline width so merging cannot reshape the cell
+      // beyond its visible boundary. Width uses the same units as the polygon.
+      return here < neighbours * ratio && here / 2 <= maxDisplacement;
     });
     // Two stubs in a row would chain into a bigger change than intended.
     for (let i = 0; i < n; i += 1) {
